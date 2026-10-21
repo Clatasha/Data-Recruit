@@ -17,7 +17,7 @@ import {
 	Undo2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import logoMark from "@/assets/openscreen-mark.png";
+import logoMark from "@/assets/data-recruit-mark.svg";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n, useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
