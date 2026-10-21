@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           if [[ ! -f src/main.tsx ]]; then
             overlay=$(git rev-parse HEAD)
-            git diff --name-only --diff-filter=AM main...HEAD > /tmp/data-recruit-overlay.txt
+            git diff --name-only --diff-filter=AM origin/main...HEAD > /tmp/data-recruit-overlay.txt
             git fetch --depth=1 https://github.com/Clatasha/Reaction-Station.git 9b4a67e6460d32c5fc1d8861ef606c084bd1ba20
             git read-tree --reset -u FETCH_HEAD
             # Keep only Data Recruit workflows; no inherited schedules or publishing jobs.
