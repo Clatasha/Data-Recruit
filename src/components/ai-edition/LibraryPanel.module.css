@@ -1,0 +1,25 @@
+.library { display:flex; flex-direction:column; height:100%; min-height:0; padding:12px; gap:10px; color:var(--text); overflow:hidden; }
+.header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.header h2 { font-size:15px; margin:0; }
+.library button,.library input { border:1px solid var(--border); background:var(--surface-1); color:inherit; border-radius:6px; padding:6px; min-width:0; }
+.tabs,.filters { display:flex; gap:4px; flex-wrap:wrap; }
+.library button[aria-selected="true"],.library button[aria-pressed="true"] { border-color:var(--accent); background:var(--surface-2); }
+.grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; overflow:auto; flex:1; align-content:start; min-height:70px; }
+.card { position:relative; min-width:0; }
+.card button { width:100%; }
+.card span { display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:11px; }
+.thumb { aspect-ratio:16/10; display:flex; align-items:center; justify-content:center; background:#15151b; border-radius:4px; overflow:hidden; margin-bottom:4px; }
+.thumb img,.thumb video { width:100%; height:100%; object-fit:cover; }
+.thumb audio { display:none; }
+.empty { font-size:12px; color:var(--muted); grid-column:1/-1; }
+.chat { flex-shrink:0; }
+.chat[open] { display:flex; flex-direction:column; height:45%; min-height:160px; overflow:hidden; }
+.chat summary { cursor:pointer; padding:8px 0; font-size:12px; }
+.chatBody { flex:1; min-height:0; overflow:auto; }
+
+.contextMenu { width:200px; padding:5px; }
+.contextMenu button { display:block; width:100%; text-align:left; border:0; background:transparent; color:var(--fg); border-radius:5px; padding:8px; cursor:pointer; }
+.contextMenu button:hover,.contextMenu button:focus-visible { background:var(--surface-2); }
+.missing { color:var(--danger); padding-top:4px; }
+.thumb:has(img) { background-color:#cfd3da; background-image:linear-gradient(45deg,#aeb5c0 25%,transparent 25%),linear-gradient(-45deg,#aeb5c0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#aeb5c0 75%),linear-gradient(-45deg,transparent 75%,#aeb5c0 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; }
+.thumb img { object-fit:contain; }

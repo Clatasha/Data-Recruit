@@ -1,0 +1,124 @@
+export interface RecordedAudioSource {
+	path: string;
+	source: "microphone" | "desktop";
+}
+
+export interface ProjectMedia {
+	/** Synchronized, independent recorded sources. The video retains a fallback mix. */
+	audioSources?: RecordedAudioSource[];
+	screenVideoPath: string;
+	webcamVideoPath?: string;
+	/**
+	 * Milliseconds to shift the webcam asset's playback position relative to
+	 * the screen recording. Negative when the webcam started capturing before
+	 * the screen recording's real start (e.g. the browser MediaRecorder for
+	 * the webcam is started in the renderer before the native Windows helper
+	 * process finishes spawning and confirms recording), so the editor skips
+	 * that much extra leading footage instead of showing stale camera frames.
+	 */
+	webcamOffsetMs?: number;
+	cursorCaptureMode?: CursorCaptureMode;
+}
+
+export type CursorCaptureMode = "editable-overlay" | "system";
+
+export interface RecordingSession extends ProjectMedia {
+	createdAt: number;
+}
+
+export interface RecordedVideoAssetInput {
+	fileName: string;
+	videoData: ArrayBuffer;
+}
+
+export interface StoreRecordedSessionInput {
+	screen: RecordedVideoAssetInput;
+	webcam?: RecordedVideoAssetInput;
+	createdAt?: number;
+	cursorCaptureMode?: CursorCaptureMode;
+	/**
+	 * Recording wall-clock duration (ms). The main process patches the WebM Duration
+	 * header on streamed recordings (the renderer no longer holds the bytes). Browser
+	 * MediaRecorder writes no/zero duration, which breaks the editor seek bar and
+	 * timeline for anything that took the streaming path.
+	 */
+	durationMs?: number;
+	/** See {@link ProjectMedia.webcamOffsetMs}. */
+	webcamOffsetMs?: number;
+}
+
+export function normalizeCursorCaptureMode(value: unknown): CursorCaptureMode | undefined {
+	return value === "editable-overlay" || value === "system" ? value : undefined;
+}
+
+function normalizePath(value: unknown): string | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed ? trimmed : undefined;
+}
+
+export function normalizeRecordedAudioSources(value: unknown): RecordedAudioSource[] {
+	if (!Array.isArray(value)) return [];
+	const sources: RecordedAudioSource[] = [];
+	for (const entry of value) {
+		if (!entry || typeof entry !== "object") continue;
+		const path = normalizePath(entry.path);
+		const source = entry.source;
+		if (!path || (source !== "microphone" && source !== "desktop")) continue;
+		if (sources.some((item) => item.source === source || item.path === path)) continue;
+		sources.push({ path, source });
+	}
+	return sources;
+}
+
+export function normalizeProjectMedia(candidate: unknown): ProjectMedia | null {
+	if (!candidate || typeof candidate !== "object") {
+		return null;
+	}
+
+	const raw = candidate as Partial<ProjectMedia>;
+	const screenVideoPath = normalizePath(raw.screenVideoPath);
+
+	if (!screenVideoPath) {
+		return null;
+	}
+
+	const audioSources = normalizeRecordedAudioSources(raw.audioSources);
+	const webcamVideoPath = normalizePath(raw.webcamVideoPath);
+	const cursorCaptureMode = normalizeCursorCaptureMode(raw.cursorCaptureMode);
+	const webcamOffsetMs =
+		typeof raw.webcamOffsetMs === "number" && Number.isFinite(raw.webcamOffsetMs)
+			? raw.webcamOffsetMs
+			: undefined;
+
+	return {
+		screenVideoPath,
+		...(audioSources.length ? { audioSources } : {}),
+		...(webcamVideoPath ? { webcamVideoPath } : {}),
+		...(webcamOffsetMs !== undefined ? { webcamOffsetMs } : {}),
+		...(cursorCaptureMode ? { cursorCaptureMode } : {}),
+	};
+}
+
+export function normalizeRecordingSession(candidate: unknown): RecordingSession | null {
+	if (!candidate || typeof candidate !== "object") {
+		return null;
+	}
+
+	const raw = candidate as Partial<RecordingSession>;
+	const media = normalizeProjectMedia(raw);
+	if (!media) {
+		return null;
+	}
+
+	return {
+		...media,
+		createdAt:
+			typeof raw.createdAt === "number" && Number.isFinite(raw.createdAt)
+				? raw.createdAt
+				: Date.now(),
+	};
+}

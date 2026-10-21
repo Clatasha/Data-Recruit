@@ -1,0 +1,187 @@
+{
+	"tooltips": {
+		"hideHUD": "HUD ausblenden",
+		"hideHUDTip": "Aufnahmeleiste ausblenden. Über das Symbol im Infobereich wieder einblenden.",
+		"closeApp": "App schließen",
+		"restartRecording": "Diese Aufnahme löschen und eine neue starten",
+		"cancelRecording": "Stoppen und diese Aufnahme löschen",
+		"pauseRecording": "Aufnahme pausieren",
+		"resumeRecording": "Aufnahme fortsetzen",
+		"useVerticalTray": "Vertikale Leiste verwenden",
+		"useHorizontalTray": "Horizontale Leiste verwenden",
+		"changeSource": "Anderen Bildschirm oder anderes Fenster wählen",
+		"systemAudio": "Systemton: nimmt den Ton auf, den dein Computer wiedergibt",
+		"microphone": "Mikrofon: nimmt deine Stimme auf",
+		"camera": "Kamera: nimmt dich als getrennte Ebene auf, die du im Editor verschieben kannst",
+		"openStudio": "Studio öffnen: der Editor für deine Aufnahmen",
+		"openNotes": "Notizen öffnen: Text zum Ablesen während der Aufnahme",
+		"openNotesPlaceholder": "Hier Notizen schreiben…",
+		"notesToolbar": {
+			"bold": "Fett",
+			"italic": "Kursiv",
+			"strikethrough": "Durchgestrichen",
+			"bulletList": "Aufzählung",
+			"numberedList": "Nummerierte Liste",
+			"blockquote": "Zitat",
+			"codeBlock": "Codeblock",
+			"play": "Auto-Scroll starten",
+			"pause": "Auto-Scroll pausieren",
+			"speed": "Scroll-Tempo",
+			"decreaseSpeed": "Scroll-Tempo verringern",
+			"increaseSpeed": "Scroll-Tempo erhöhen",
+			"fontSize": "Schriftgröße",
+			"decreaseFontSize": "Schrift verkleinern",
+			"increaseFontSize": "Schrift vergrößern",
+			"mirror": "Horizontal spiegeln",
+			"mirrorTip": "Spiegelt den Text, damit er im Spiegel lesbar ist"
+		}
+	},
+	"audio": {
+		"systemAudio": "Systemton",
+		"microphone": "Mikrofon",
+		"inputDevice": "Eingabegerät"
+	},
+	"webcam": {
+		"searching": "Suche läuft…",
+		"noneFound": "Keine Kamera gefunden",
+		"unavailable": "Kamera nicht verfügbar",
+		"camera": "Kamera",
+		"cameraDevice": "Kameragerät",
+		"quality": "Kameraqualität",
+		"quality1080p": "1080p",
+		"quality1440p": "1440p",
+		"quality2160p": "4K"
+	},
+	"cursor": {
+		"name": "Bearbeitbarer Cursor",
+		"editableTip": "Bearbeitbarer Cursor: wird getrennt aufgenommen, damit du im Editor sein Aussehen ändern und Auto-Zoom nutzen kannst",
+		"systemTip": "System-Cursor: dein echter Cursor, im Video aufgenommen. Aussehen nicht änderbar, kein Auto-Zoom."
+	},
+	"sourceSelector": {
+		"loading": "Quellen werden geladen…",
+		"screens": "Bildschirme ({{count}})",
+		"windows": "Fenster ({{count}})",
+		"emptyTitle": "Keine Bildschirme oder Fenster gefunden",
+		"emptyDescription": "Wenn du die Berechtigung zur Bildschirmaufnahme gerade erteilt hast, lade diese Auswahl neu. Unter macOS musst du Reaction Station eventuell neu öffnen.",
+		"loadFailedDescription": "Reaction Station konnte die Aufnahmequellen nicht laden. Lade diese Auswahl neu und versuche es erneut.",
+		"defaultSourceName": "Bildschirm"
+	},
+	"recording": {
+		"selectSource": "Bitte wähle eine Quelle für die Aufnahme",
+		"systemPicker": "Dein System fragt gleich, was du teilen möchtest",
+		"start": "Aufnahme starten",
+		"stop": "Aufnahme stoppen und speichern",
+		"saving": "Wird gespeichert…"
+	},
+	"language": "Sprache",
+	"languageWithName": "Sprache: {{language}}",
+	"systemLanguagePrompt": {
+		"title": "Systemsprache verwenden?",
+		"description": "{{language}} wurde als deine Systemsprache erkannt. Soll Reaction Station auf {{language}} umgestellt werden?",
+		"switch": "Zu {{language}} wechseln",
+		"keepDefault": "Aktuelle Sprache behalten"
+	},
+	"softwareEncoderFallback": {
+		"title": "Auf Software-Encoding umgestellt",
+		"description": "Der Standard-GPU-Encoder konnte nicht gestartet werden, deshalb ist Reaction Station auf Software-H.264-Encoding zurückgefallen. Die Aufnahme läuft normal weiter, die CPU-Auslastung kann aber höher sein.",
+		"dismiss": "Verstanden",
+		"dontShowAgain": "Nicht mehr anzeigen"
+	},
+	"deviceSettings": {
+		"title": "Geräteeinstellungen",
+		"close": "Schließen",
+		"micLevel": "Eingangspegel",
+		"micHint": "Sprich, um dein Mikrofon zu prüfen",
+		"noMicrophones": "Kein Mikrofon gefunden",
+		"preview": "Vorschau",
+		"previewUnavailable": "Vorschau nicht verfügbar",
+		"about": "Über",
+		"version": "Version {{version}}",
+		"checkingForUpdates": "Wird geprüft…"
+	},
+	"permissions": {
+		"title": "Reaction Station benötigt einige Berechtigungen",
+		"subtitle": "macOS fragt jede Berechtigung nur einmal ab. Du kannst sie jederzeit in den Systemeinstellungen ändern.",
+		"level": {
+			"required": "Erforderlich",
+			"recommended": "Empfohlen",
+			"optional": "Optional"
+		},
+		"rows": {
+			"screen": {
+				"name": "Bildschirm & Systemaudio",
+				"description": "Um deinen Bildschirm und den Ton deines Mac aufzunehmen."
+			},
+			"systemAudio": {
+				"name": "Systemaudio",
+				"description": "Um den Ton deines Mac aufzunehmen. Für die Auswahl eines Bildschirms oder Fensters ist keine Berechtigung nötig."
+			},
+			"accessibility": {
+				"name": "Bedienungshilfen",
+				"description": "Um in Aufnahmen den richtigen Zeiger (Pfeil, Text) anzuzeigen."
+			},
+			"microphone": {
+				"name": "Mikrofon",
+				"description": "Um deine Stimme aufzunehmen."
+			},
+			"camera": {
+				"name": "Kamera",
+				"description": "Um deine Webcam zu Aufnahmen hinzuzufügen."
+			}
+		},
+		"status": {
+			"granted": "Erlaubt",
+			"restricted": "Von deiner Organisation verwaltet"
+		},
+		"actions": {
+			"continue": "Weiter",
+			"allow": "Erlauben",
+			"openSettings": "Einstellungen öffnen",
+			"restart": "Reaction Station neu starten",
+			"start": "Los geht's"
+		},
+		"help": {
+			"screenPrompt": "macOS bittet dich anschließend, Reaction Station in den Systemeinstellungen zu aktivieren.",
+			"screenSettings": "Aktiviere Reaction Station in den Systemeinstellungen. Wenn macOS anbietet, die App zu beenden und neu zu öffnen, stimme zu: Dieses Fenster erscheint wieder.",
+			"screenNotListed": "Reaction Station fehlt in der Liste? Klicke auf + und wähle Reaction Station unter „Programme“.",
+			"screenRestart": "Erlaubt. Reaction Station muss neu starten, um die Berechtigung zu nutzen.",
+			"screenRecurring": "Bei deiner ersten Aufnahme fragt macOS, ob Reaction Station ohne die Systemauswahl direkt auf deinen Bildschirm zugreifen darf. Klicke auf „Erlauben“. macOS fragt von Zeit zu Zeit erneut – das ist normal.",
+			"systemAudioPrompt": "macOS fragt dich, ob Reaction Station den Ton deines Mac aufnehmen darf.",
+			"systemAudioRequested": "Falls du abgelehnt hast, aktiviere Reaction Station unter „Nur Aufnahme von Systemaudio“ in den Systemeinstellungen."
+		},
+		"footer": {
+			"screenRequired": "Zum Aufnehmen ist die Bildschirmaufnahme erforderlich.",
+			"ready": "Alles bereit."
+		}
+	},
+	"reaction": {
+		"creatorStudio": "Creator studio",
+		"ready": "Ready to record",
+		"live": "Recording",
+		"paused": "Paused",
+		"controls": "Controls",
+		"sessionControls": "Session controls",
+		"mixer": "Audio mixer",
+		"hotkeys": "Hotkeys",
+		"mute": "Mute",
+		"muted": "Muted",
+		"unmute": "Unmute",
+		"volume": "volume",
+		"enableBefore": "Enable this source before starting your take.",
+		"mixHint": "Balance your voice and the video before recording.",
+		"liveMixHint": "Adjust the recorded sound without interrupting your take.",
+		"unsupported": "Live mixing is currently available on Windows and browser capture.",
+		"hotkeyHint": "These shortcuts work outside the app while the recorder is open. Change them between takes.",
+		"modifiers": "modifiers",
+		"key": "key",
+		"saveShortcuts": "Save shortcuts",
+		"shortcutsSaved": "Recording shortcuts saved",
+		"shortcutsFailed": "Could not save shortcuts. Check for conflicting combinations.",
+		"actions": {
+			"record": "Start / stop recording",
+			"pause": "Pause / resume recording",
+			"muteMicrophone": "Mute / unmute microphone",
+			"muteSystem": "Mute / unmute video audio"
+		}
+	}
+}
