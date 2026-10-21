@@ -24,6 +24,7 @@ declare namespace NodeJS {
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
 	electronAPI: {
+		dataRecruitExportVideo?: (bytes: ArrayBuffer) => Promise<string | null>;
 		dataRecruitSaveVideo?: (bytes: ArrayBuffer, recipe: string) => Promise<string>;
 		invokeNativeBridge: <TData = unknown>(
 			request: import("../src/native/contracts").NativeBridgeRequest,

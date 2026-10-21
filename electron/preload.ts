@@ -59,6 +59,8 @@ sharedTexture?.setSharedTextureReceiver(async ({ importedSharedTexture }, meta) 
 });
 
 contextBridge.exposeInMainWorld("electronAPI", {
+	dataRecruitExportVideo: (bytes: ArrayBuffer): Promise<string | null> =>
+		ipcRenderer.invoke("data-recruit:export-video", bytes),
 	dataRecruitSaveVideo: (bytes: ArrayBuffer, recipe: string): Promise<string> =>
 		ipcRenderer.invoke("data-recruit:save-video", bytes, recipe),
 	assetBaseUrl,

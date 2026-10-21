@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import { attachClipAudio } from "@/lib/ai-edition/document/editorTracks";
 import { createId } from "@/lib/ai-edition/document/ids";
 import { withClipsChanged } from "@/lib/ai-edition/document/timeline";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
-import { type Bookend, encodeScroll } from "./export";
+import { type Bookend, loadBookend, loadImage, pauseBookends, serializeBookend } from "./bookends";
+import { encodeScroll } from "./export";
 import {
 	type CardTemplate,
 	FACTS_TEXT,
@@ -42,8 +44,10 @@ const imageSchema = z.object({
 const bookendSchema = z
 	.object({
 		name: z.string(),
-		url: z.string().startsWith("data:image/"),
-		duration: z.number().min(1).max(30),
+		url: z.string().regex(/^data:(?:image|video)\//),
+		kind: z.enum(["image", "video"]).default("image"),
+		muted: z.boolean().default(false),
+		duration: z.number().min(0.1).max(600),
 	})
 	.nullable();
 const recipeSchema = z.object({
@@ -66,13 +70,6 @@ const readUrl = (file: File): Promise<string> =>
 		reader.onload = () => resolve(String(reader.result));
 		reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
 		reader.readAsDataURL(file);
-	});
-export const loadImage = (url: string): Promise<HTMLImageElement> =>
-	new Promise((resolve, reject) => {
-		const image = new Image();
-		image.onload = () => resolve(image);
-		image.onerror = () => reject(new Error("Could not decode an image. Use PNG, JPEG or WebP."));
-		image.src = url;
 	});
 function download(blob: Blob, name: string) {
 	const url = URL.createObjectURL(blob);
@@ -151,21 +148,57 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		introTime = intro?.duration ?? 0;
 	const total = introTime + scroll + (outro?.duration ?? 0);
 	const dims = geometry(settings.format);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: Any source edit invalidates the built timeline.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Source edits update the timeline immediately and reset playback.
 	useEffect(() => {
-		setBuilt(false);
 		setPlaying(false);
 		setTime(0);
 	}, [text, images, template, settings, intro, outro]);
 	useEffect(() => {
 		const ctx = canvasRef.current?.getContext("2d");
 		if (!ctx) return;
-		if (intro && time < introTime)
-			drawImageFit(ctx, intro.image, 0, 0, dims.width, dims.height, "fit");
-		else if (outro && time >= introTime + scroll)
-			drawImageFit(ctx, outro.image, 0, 0, dims.width, dims.height, "fit");
-		else drawScroll(ctx, rendered, Math.max(0, time - introTime), settings);
-	}, [time, rendered, intro, outro, introTime, scroll, settings, dims.width, dims.height]);
+		const active =
+			intro && time < introTime ? intro : outro && time >= introTime + scroll ? outro : null;
+		const offset = active === outro ? introTime + scroll : 0;
+		const paint = () => {
+			if (active) drawImageFit(ctx, active.media, 0, 0, dims.width, dims.height, "fit");
+			else drawScroll(ctx, rendered, Math.max(0, time - introTime), settings);
+		};
+		for (const item of [intro, outro]) {
+			if (item?.kind !== "video") continue;
+			if (item === active) {
+				const target = Math.max(0, Math.min(item.sourceDuration - 0.001, time - offset));
+				if (
+					!item.media.seeking &&
+					Math.abs(item.media.currentTime - target) > (playing ? 0.2 : 0.015)
+				)
+					item.media.currentTime = target;
+				item.media.muted = item.muted;
+				if (playing && !busy)
+					void item.media.play().catch(() => {
+						setPlaying(false);
+						setMessage("Video playback could not start. Press Play to retry.");
+					});
+				else item.media.pause();
+			} else item.media.pause();
+		}
+		paint();
+		if (active?.kind === "video") active.media.addEventListener("seeked", paint);
+		return () => {
+			if (active?.kind === "video") active.media.removeEventListener("seeked", paint);
+		};
+	}, [
+		time,
+		rendered,
+		intro,
+		outro,
+		introTime,
+		scroll,
+		settings,
+		dims.width,
+		dims.height,
+		playing,
+		busy,
+	]);
 	useEffect(() => {
 		if (!playing) return;
 		let frame = 0;
@@ -175,7 +208,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			previous = now;
 			setTime((value) => {
 				const next = Math.min(total, value + delta);
-				if (next === total) setPlaying(false);
+
 				return next;
 			});
 			frame = requestAnimationFrame(tick);
@@ -183,6 +216,15 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		frame = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(frame);
 	}, [playing, total]);
+	useEffect(() => {
+		if (time >= total && playing) setPlaying(false);
+	}, [time, total, playing]);
+	useEffect(
+		() => () => {
+			pauseBookends(intro, outro);
+		},
+		[intro, outro],
+	);
 	useEffect(() => () => abortRef.current?.abort(), []);
 	const fail = (error: unknown) =>
 		setMessage(error instanceof Error ? error.message : String(error));
@@ -201,9 +243,30 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				const url = await readUrl(file);
 				loaded.push({ id, name: file.name, url, x: 0.5, y: 0.5, image: await loadImage(url) });
 			}
-			setImages(loaded.sort((a, b) => a.id - b.id));
+			setImages((existing) =>
+				[
+					...existing.filter((image) => !loaded.some((added) => added.id === image.id)),
+					...loaded,
+				].sort((a, b) => a.id - b.id),
+			);
 			setSelected(loaded[0]?.id ?? null);
-			setMessage(`${loaded.length} numbered images loaded.`);
+			setMessage(`${loaded.length} numbered images added or replaced. Other cards were kept.`);
+		} catch (error) {
+			fail(error);
+		}
+	}
+	async function replaceImage(file: File | undefined, id: number) {
+		if (!file) return;
+		try {
+			const url = await readUrl(file),
+				image = await loadImage(url);
+			setImages((existing) =>
+				[
+					...existing.filter((value) => value.id !== id),
+					{ id, name: file.name, url, image, x: 0.5, y: 0.5 },
+				].sort((a, b) => a.id - b.id),
+			);
+			setMessage(`Image #${id} replaced. The other cards were kept.`);
 		} catch (error) {
 			fail(error);
 		}
@@ -211,9 +274,18 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 	async function addBookend(file: File | undefined, kind: "intro" | "outro") {
 		if (!file) return;
 		try {
-			const url = await readUrl(file);
-			const value = { image: await loadImage(url), name: file.name, url, duration: 3 };
+			if (file.size > 100 * 1024 * 1024)
+				throw new Error("Use an intro or outro smaller than 100 MB.");
+			const mediaKind =
+				file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name)
+					? "video"
+					: "image";
+			const value = await loadBookend(file.name, await readUrl(file), mediaKind);
+			if (value.duration > 600) value.duration = 600;
 			(kind === "intro" ? setIntro : setOutro)(value);
+			setMessage(
+				`${kind === "intro" ? "Intro" : "Outro"} ${mediaKind} added. ${mediaKind === "video" ? "Original audio is included unless muted." : ""}`,
+			);
 		} catch (error) {
 			fail(error);
 		}
@@ -225,8 +297,8 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			template,
 			settings,
 			images: images.map(({ image: _image, ...value }) => value),
-			intro: intro ? { name: intro.name, url: intro.url, duration: intro.duration } : null,
-			outro: outro ? { name: outro.name, url: outro.url, duration: outro.duration } : null,
+			intro: serializeBookend(intro),
+			outro: serializeBookend(outro),
 		};
 	}
 	async function openRecipe(file: File | undefined) {
@@ -238,9 +310,12 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			const loaded = await Promise.all(
 				value.images.map(async (image) => ({ ...image, image: await loadImage(image.url) })),
 			);
-			const loadBookend = async (item: typeof value.intro) =>
-				item ? { ...item, image: await loadImage(item.url) } : null;
-			const [first, last] = await Promise.all([loadBookend(value.intro), loadBookend(value.outro)]);
+			const restoreBookend = async (item: typeof value.intro) =>
+				item ? loadBookend(item.name, item.url, item.kind, item.duration, item.muted) : null;
+			const [first, last] = await Promise.all([
+				restoreBookend(value.intro),
+				restoreBookend(value.outro),
+			]);
 			setText(value.text);
 			setTemplate(value.template);
 			setSettings(value.settings);
@@ -252,29 +327,34 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			fail(error);
 		}
 	}
-	function build() {
+	function ensureReady() {
 		if (problems.length) {
 			setMessage(problems.slice(0, 5).join(" "));
-			return;
+			return false;
 		}
 		if (total > 1200) {
 			setMessage("This project exceeds 20 minutes. Increase the speed or use fewer cards.");
-			return;
+			return false;
 		}
 		setBuilt(true);
-		setTime(introTime);
+		return true;
+	}
+	function build() {
+		if (!ensureReady()) return;
+		setTime(0);
 		setPlaying(true);
 		setMessage("Timeline built. Preview the scroll, export MP4, or continue in the editor.");
 	}
 	async function exportVideo(editor = false) {
-		if (busy || !built) return;
+		if (busy || !ensureReady()) return;
 		setBusy(true);
+		setMessage("Preparing MP4 video and audio…");
 		setPlaying(false);
 		setProgress(0);
 		const controller = new AbortController();
 		abortRef.current = controller;
 		try {
-			const bytes = await encodeScroll(
+			const { bytes, hasAudio } = await encodeScroll(
 				rendered,
 				settings,
 				intro,
@@ -292,9 +372,12 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				const store = () => useProjectStore.getState();
 				await store().createProject(`Data Recruit · ${template.name}`);
 				const asset = await store().addAsset(path, "Scrolling cards");
+				const audio = hasAudio ? await store().addAudioAsset(path, "Intro and outro audio") : null;
+				if (hasAudio && !audio)
+					throw new Error("Could not add the intro/outro audio to the editor.");
 				const doc = store().document;
 				if (!asset || !doc) throw new Error("Could not add the generated video to the editor.");
-				const next = withClipsChanged(doc, [
+				let next = withClipsChanged(doc, [
 					{
 						id: createId("clip"),
 						assetId: asset.id,
@@ -305,9 +388,10 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						wordRefs: [],
 						origin: "user",
 						reason: "Built by Data Recruit",
-						embeddedAudioMuted: true,
+						embeddedAudioMuted: false,
 					},
 				]);
+				if (audio) next = attachClipAudio(next, next.timeline.clips[0].id, audio.id);
 				next.legacyEditor = {
 					...next.legacyEditor,
 					aspectRatio: settings.format === "shorts" ? "9:16" : "16:9",
@@ -319,8 +403,17 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					throw new Error("Could not save the editor timeline.");
 				onOpenEditor?.();
 			} else {
-				download(new Blob([bytes], { type: "video/mp4" }), "Data-Recruit.mp4");
-				setMessage("MP4 ready. Save your project too if you want to change the cards later.");
+				if (window.electronAPI?.dataRecruitExportVideo) {
+					const saved = await window.electronAPI.dataRecruitExportVideo(bytes);
+					setMessage(
+						saved
+							? `MP4 ready. Saved to ${saved}`
+							: "Export save cancelled. Your project is still here.",
+					);
+				} else {
+					download(new Blob([bytes], { type: "video/mp4" }), "Data-Recruit.mp4");
+					setMessage("MP4 ready. Save your project too if you want to change the cards later.");
+				}
 			}
 		} catch (error) {
 			fail(error);
@@ -384,7 +477,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					<button
 						className="dr-primary"
 						type="button"
-						disabled={!built || busy}
+						disabled={busy}
 						onClick={() => void exportVideo()}
 					>
 						Export MP4 ↗
@@ -639,10 +732,13 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					<div className="dr-player">
 						<button
 							type="button"
-							disabled={!built || busy}
+							disabled={busy}
 							onClick={() => {
-								if (time >= total) setTime(0);
-								setPlaying(!playing);
+								if (playing) setPlaying(false);
+								else if (ensureReady()) {
+									if (time >= total) setTime(0);
+									setPlaying(true);
+								}
 							}}
 						>
 							{playing ? "Ⅱ Pause" : "▶ Play"}
@@ -652,7 +748,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						</span>
 						<button
 							type="button"
-							disabled={!built}
+							disabled={busy}
 							onClick={() => {
 								setPlaying(false);
 								setTime(0);
@@ -781,6 +877,19 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						<h2>Selected card {selected ? `#${selected}` : ""}</h2>
 						{selectedCard ? (
 							<div className="dr-fields">
+								<label className="dr-button">
+									{chosen ? "Replace image" : "Add image for this card"}
+									<input
+										aria-label={`Replace image for card ${selected}`}
+										type="file"
+										accept="image/png,image/jpeg,image/webp"
+										hidden
+										onChange={(event) => {
+											if (selected !== null) void replaceImage(event.target.files?.[0], selected);
+											event.target.value = "";
+										}}
+									/>
+								</label>
 								{["title", "year", ...template.rows.map((row) => row.key)].map((key) => (
 									<label key={key}>
 										{key}
@@ -843,10 +952,11 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							return (
 								<div className="dr-bookend-control" key={kind}>
 									<label className="dr-button">
-										＋ {item?.name || `Add ${kind} image`}
+										＋ {item?.name || `Add ${kind} image or video`}
 										<input
 											type="file"
-											accept="image/png,image/jpeg,image/webp"
+											aria-label={`Choose ${kind} image or video`}
+											accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,video/x-m4v"
 											hidden
 											onChange={(event) => {
 												void addBookend(event.target.files?.[0], kind);
@@ -854,6 +964,16 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 											}}
 										/>
 									</label>
+									{item?.kind === "video" && (
+										<label className="dr-mute">
+											<input
+												type="checkbox"
+												checked={item.muted}
+												onChange={(event) => setter({ ...item, muted: event.target.checked })}
+											/>{" "}
+											Mute {kind} audio
+										</label>
+									)}
 									{item && (
 										<div className="dr-inline">
 											<label>
@@ -861,13 +981,20 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 												<input
 													aria-label={`${kind} seconds`}
 													type="number"
-													min="1"
-													max="30"
+													min="0.1"
+													step="0.1"
+													max={item.kind === "video" ? Math.min(600, item.sourceDuration) : 30}
 													value={item.duration}
 													onChange={(event) =>
 														setter({
 															...item,
-															duration: Math.max(1, Math.min(30, Number(event.target.value) || 1)),
+															duration: Math.max(
+																0.1,
+																Math.min(
+																	item.kind === "video" ? Math.min(600, item.sourceDuration) : 30,
+																	Number(event.target.value) || 0.1,
+																),
+															),
 														})
 													}
 												/>
@@ -881,10 +1008,18 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							);
 						})}
 						<small>
-							Use image bookends here. Add video intros, music and narration in the editor.
+							Choose an image or video. Video clips keep their audio and can be shortened here.
 						</small>
 					</section>
 					<div className="dr-build">
+						{problems.length > 0 && (
+							<ul className="dr-errors">
+								{problems.slice(0, 4).map((problem) => (
+									<li key={problem}>{problem}</li>
+								))}
+								{problems.length > 4 && <li>And {problems.length - 4} more…</li>}
+							</ul>
+						)}
 						<span>
 							{problems.length
 								? `${problems.length} item${problems.length === 1 ? "" : "s"} to check`
@@ -895,7 +1030,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						</button>
 						<button
 							type="button"
-							disabled={!built || busy || !window.electronAPI?.dataRecruitSaveVideo}
+							disabled={busy || !window.electronAPI?.dataRecruitSaveVideo}
 							onClick={() => void exportVideo(true)}
 						>
 							Continue in Editor →

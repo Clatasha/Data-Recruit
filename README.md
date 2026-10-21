@@ -36,7 +36,7 @@ Templates can have 1–6 named data rows, each with a background color. Save cus
 
 **Save project** downloads a portable JSON containing the data, template, image files, crop settings, format and image bookends. **Open project** restores it. Save this file before closing if you want to edit the cards later.
 
-Optional intro/outro images have adjustable duration. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can add video intros/outros, music, narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
+Optional intro/outro slots accept images or videos. Images have adjustable duration; videos play with their original audio, can be shortened, and have a mute switch. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can add music, narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
 
 ## Testing builds
 
@@ -45,6 +45,8 @@ The **Data Recruit Windows test** Actions workflow bootstraps the Reaction Stati
 ## Development
 
 Node 22.22.1 and npm 10.9.4. Run `npm ci`, then `npm run dev`. Browser preview: `NO_ELECTRON=1 npm run dev -- --host 127.0.0.1`, open `http://127.0.0.1:5173/?windowType=data-recruit`. MP4 export needs Chromium's H.264 WebCodecs encoder. Desktop timeline finishing uses the inherited native compositor.
+
+Play and Export automatically use the current cards, including after edits. Missing inputs are listed beside Build Timeline. Select a card to **Replace image** with any filename; numbered imports add or replace matching images without discarding the other cards. Desktop MP4 export opens a **Save As** dialog.
 
 Run `npx tsc --noEmit`, `npx tsc -p tsconfig.test.json --noEmit`, `npm test`. Build Windows: `npm run build:win -- --publish never`.
 

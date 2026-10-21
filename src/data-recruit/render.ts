@@ -66,7 +66,7 @@ function textBox(
 }
 export function drawImageFit(
 	ctx: CanvasRenderingContext2D,
-	image: HTMLImageElement,
+	image: HTMLImageElement | HTMLVideoElement,
 	x: number,
 	y: number,
 	width: number,
@@ -75,12 +75,15 @@ export function drawImageFit(
 	focusX = 0.5,
 	focusY = 0.5,
 ) {
+	const sourceWidth = "videoWidth" in image ? image.videoWidth : image.naturalWidth;
+	const sourceHeight = "videoHeight" in image ? image.videoHeight : image.naturalHeight;
+	if (!sourceWidth || !sourceHeight) return;
 	const scale =
 		fit === "fill"
-			? Math.max(width / image.naturalWidth, height / image.naturalHeight)
-			: Math.min(width / image.naturalWidth, height / image.naturalHeight);
-	const w = image.naturalWidth * scale,
-		h = image.naturalHeight * scale;
+			? Math.max(width / sourceWidth, height / sourceHeight)
+			: Math.min(width / sourceWidth, height / sourceHeight);
+	const w = sourceWidth * scale,
+		h = sourceHeight * scale;
 	ctx.save();
 	ctx.beginPath();
 	ctx.rect(x, y, width, height);

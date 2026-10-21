@@ -1,0 +1,80 @@
+export type Bookend = {
+	name: string;
+	url: string;
+	duration: number;
+} & (
+	| { kind: "image"; media: HTMLImageElement }
+	| { kind: "video"; media: HTMLVideoElement; sourceDuration: number; muted: boolean }
+);
+
+export const loadImage = (url: string): Promise<HTMLImageElement> =>
+	new Promise((resolve, reject) => {
+		const image = new Image();
+		image.onload = () => resolve(image);
+		image.onerror = () => reject(new Error("Could not decode the image. Use PNG, JPEG or WebP."));
+		image.src = url;
+	});
+
+export async function loadBookend(
+	name: string,
+	url: string,
+	kind: "image" | "video",
+	duration?: number,
+	muted = false,
+): Promise<Bookend> {
+	if (kind === "image")
+		return {
+			kind,
+			name,
+			url,
+			media: await loadImage(url),
+			duration: Math.max(0.1, Math.min(30, duration ?? 3)),
+		};
+	const media = document.createElement("video");
+	media.preload = "auto";
+	media.playsInline = true;
+	await new Promise<void>((resolve, reject) => {
+		const timer = setTimeout(
+			() => finish(new Error(`Could not load ${name}. Try an MP4 with H.264 video and AAC audio.`)),
+			20_000,
+		);
+		const finish = (error?: Error) => {
+			clearTimeout(timer);
+			media.onloadeddata = null;
+			media.onerror = null;
+			error ? reject(error) : resolve();
+		};
+		media.onloadeddata = () =>
+			Number.isFinite(media.duration) && media.duration > 0
+				? finish()
+				: finish(new Error("This video has no readable duration."));
+		media.onerror = () =>
+			finish(new Error(`Cannot play ${name}. Try an MP4 with H.264 video and AAC audio.`));
+		media.src = url;
+	});
+	return {
+		kind,
+		name,
+		url,
+		media,
+		sourceDuration: media.duration,
+		duration: Math.max(0.1, Math.min(media.duration, duration ?? media.duration)),
+		muted,
+	};
+}
+
+export function serializeBookend(item: Bookend | null) {
+	return item
+		? {
+				kind: item.kind,
+				name: item.name,
+				url: item.url,
+				duration: item.duration,
+				muted: item.kind === "video" ? item.muted : false,
+			}
+		: null;
+}
+
+export function pauseBookends(...items: (Bookend | null)[]) {
+	for (const item of items) if (item?.kind === "video") item.media.pause();
+}

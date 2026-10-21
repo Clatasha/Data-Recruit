@@ -3,7 +3,14 @@ on:
   workflow_dispatch:
   push:
     branches: [feat/data-recruit]
-    paths: [.github/workflows/data-recruit-windows.yml, src/data-recruit/**]
+    paths:
+      - .github/workflows/data-recruit-windows.yml
+      - src/**
+      - electron/**
+      - scripts/test-data-recruit-ui.mjs
+      - package.json
+      - package-lock.json
+      - electron-builder.json5
 permissions:
   contents: write
 concurrency:
@@ -62,7 +69,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npx tsc -p tsconfig.test.json --noEmit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: npx vitest run src/data-recruit/model.test.ts
+      - run: npx vitest run src/data-recruit electron/data-recruit.test.ts
       - name: Install Vulkan SDK for inherited speech tools
         uses: jakoch/install-vulkan-sdk-action@v1
         with:
