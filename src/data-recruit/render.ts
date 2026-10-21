@@ -100,7 +100,7 @@ export function renderCard(
 	const canvas = document.createElement("canvas");
 	canvas.width = cardWidth;
 	canvas.height = height;
-	const ctx = canvas.getContext("2d");
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 	if (!ctx) throw new Error("Canvas unavailable");
 	const gap = Math.round(cardWidth * 0.028);
 	const width = cardWidth - gap;

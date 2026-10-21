@@ -40,6 +40,19 @@ try {
 	await page.getByRole("button", { name: "Build Timeline" }).click();
 	await page.getByRole("button", { name: "Pause", exact: false }).click();
 	await page.getByRole("slider", { name: "Timeline position" }).fill("9");
+	const labelPixels = await page.locator(".dr-stage canvas").evaluate((canvas) =>
+		[0, 1, 2].map((index) => {
+			const pixels = canvas.getContext("2d").getImageData(index * 640 + 10, 720, 330, 100).data;
+			let white = 0;
+			for (let at = 0; at < pixels.length; at += 4)
+				if (pixels[at] > 230 && pixels[at + 1] > 230 && pixels[at + 2] > 230) white++;
+			return white;
+		}),
+	);
+	assert(
+		labelPixels.every((count) => count > 1000),
+		`Missing budget text in a card: ${labelPixels}`,
+	);
 	await page.screenshot({ path: path.join(output, "landscape.png") });
 	await page.getByRole("button", { name: "9:16 Shorts", exact: false }).click();
 	await page.getByRole("button", { name: "Build Timeline" }).click();

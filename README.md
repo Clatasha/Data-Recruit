@@ -2,6 +2,8 @@
 
 Create scrolling image-and-data videos. Built by Clatasha on the Reaction Station editor (OpenScreen, MIT).
 
+![Data Recruit builder with sample image placeholders](docs/images/data-recruit-builder.jpg)
+
 ## First version
 
 1. Select numbered images: `1.jpg`, `2.jpg`, or `01 - Movie.jpg`.

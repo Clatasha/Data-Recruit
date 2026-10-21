@@ -8,7 +8,7 @@ permissions:
   contents: write
 concurrency:
   group: data-recruit-windows-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   prepare:
     runs-on: ubuntu-latest

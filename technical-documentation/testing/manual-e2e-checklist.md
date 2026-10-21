@@ -990,3 +990,10 @@ reversed clips, trim and reuse their copies. Close and reopen dialogs repeatedly
 the main timeline must remain responsive and keep its own playhead. Compare the
 resulting MP4/GIF with the native preview, including camera/caption boundaries and
 rounded source corners. Check crop, zoom, animation and mirrored cursor placement.
+
+
+### Data Recruit 0.1.0 builder
+
+| Build / branch | Platform | Result | Scope / skipped checks |
+| --- | --- | --- | --- |
+| 0.1.0 / feat/data-recruit | Linux headless Chromium, Node 24 | Partial | Browser checks passed for three numbered images, named salary rows, timeline build/play/pause/scrub, landscape and Shorts, and real H.264 MP4 encoding (1080×1920, 30 fps, 4.000 seconds measured with ffprobe). New import, movement, document-write audit, update URL and renamed editor checks passed (98 targeted tests). App/test TypeScript and production Vite builds passed. The full inherited unit run passed 4,276 tests initially; branding and write-audit failures were corrected and their suites rerun successfully. Eight inherited suites cannot load Electron because its desktop binary is unavailable in this runtime. Desktop computer-use/native compositor preview and export, file dialogs and audio were skipped because native computer APIs and Windows/macOS are unavailable. A packaged Windows automation checks builder export, editor handoff and return in Actions; this is not a stable-release promotion or a complete manual desktop pass. |
