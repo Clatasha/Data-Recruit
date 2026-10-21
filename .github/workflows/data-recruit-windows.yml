@@ -1,0 +1,109 @@
+name: Data Recruit Windows test
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/data-recruit]
+    paths: [.github/workflows/data-recruit-windows.yml, src/data-recruit/**]
+permissions:
+  contents: write
+concurrency:
+  group: data-recruit-windows-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bring in the Reaction Station foundation once
+        id: base
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f src/main.tsx ]]; then
+            overlay=$(git rev-parse HEAD)
+            git diff --name-only --diff-filter=AM main...HEAD > /tmp/data-recruit-overlay.txt
+            git fetch --depth=1 https://github.com/Clatasha/Reaction-Station.git 9b4a67e6460d32c5fc1d8861ef606c084bd1ba20
+            git read-tree --reset -u FETCH_HEAD
+            # Keep only Data Recruit workflows; no inherited schedules or publishing jobs.
+            git rm -r --ignore-unmatch .github/workflows
+            git restore --source="$overlay" --staged --worktree -- .github/workflows
+            while IFS= read -r item; do
+              git restore --source="$overlay" --staged --worktree -- "$item"
+            done < /tmp/data-recruit-overlay.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: import Reaction Station foundation for Data Recruit"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.1"
+          cache: npm
+      - run: npm install --global npm@10.9.4
+      - run: npm ci
+      - name: Typecheck app and tests
+        run: |
+          npx tsc --noEmit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx tsc -p tsconfig.test.json --noEmit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: npx vitest run src/data-recruit/model.test.ts
+      - name: Install Vulkan SDK for inherited speech tools
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.304.1
+          install_runtime: false
+          cache: true
+      - name: Configure Vulkan and SPIRV headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          for candidate in "${VULKAN_SDK}/Bin" "${VULKAN_SDK}/bin"; do
+            if [[ -d "$candidate" ]]; then echo "$candidate" >> "$GITHUB_PATH"; fi
+          done
+          VCPKG_ROOT_DIR="$(dirname "$(command -v vcpkg)")"
+          "${VCPKG_ROOT_DIR}/vcpkg" install spirv-headers:x64-windows
+          echo "CMAKE_PREFIX_PATH=${VCPKG_ROOT_DIR}/installed/x64-windows" >> "$GITHUB_ENV"
+      - name: Build inherited speech runtime
+        shell: bash
+        run: bash scripts/build-whisper-stt.sh
+      - name: Build native compositor and Windows installer
+        run: npm run build:win -- --publish never
+      - name: Smoke test desktop builder and export
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem release -Directory -Recurse | Where-Object Name -eq "win-unpacked"
+          node scripts/test-data-recruit-ui.mjs (Join-Path $package.FullName "Data Recruit.exe")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload interface previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-recruit-preview
+          path: release/data-recruit-preview/*
+          if-no-files-found: warn
+      - name: Upload test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-recruit-windows-test
+          path: |
+            release/**/Data Recruit.Setup.*.exe
+            release/**/Data Recruit.Setup.*.exe.blockmap
+            release/**/latest.yml
+          if-no-files-found: error
+          retention-days: 30
