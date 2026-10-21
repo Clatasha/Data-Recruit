@@ -14,6 +14,12 @@ export interface CardTemplate {
 	titleColor: string;
 	textColor: string;
 	rows: TemplateRow[];
+	font?: "Arial" | "Verdana" | "Georgia" | "Impact";
+	textScale?: number;
+	outline?: number;
+	outlineColor?: string;
+	spacing?: number;
+	imageHeight?: number;
 }
 export const TEMPLATES: CardTemplate[] = [
 	{

@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
 	handle: vi.fn(),
+	parent: vi.fn(() => null),
+	message: vi.fn(),
 	dialog: vi.fn(),
 	write: vi.fn(),
 	mkdir: vi.fn(),
 }));
 vi.mock("electron", () => ({
 	app: { getPath: () => "/videos" },
-	BrowserWindow: { fromWebContents: () => null },
-	dialog: { showSaveDialog: mocks.dialog },
+	BrowserWindow: { fromWebContents: mocks.parent },
+	dialog: { showSaveDialog: mocks.dialog, showMessageBox: mocks.message },
 	ipcMain: { handle: mocks.handle },
 }));
 vi.mock("node:fs/promises", () => ({ default: { writeFile: mocks.write, mkdir: mocks.mkdir } }));
@@ -36,5 +38,33 @@ describe("explicit desktop export", () => {
 	it("rejects malformed video bytes before opening a dialog", async () => {
 		await expect(exportHandler()({ sender: {} }, "invalid")).rejects.toThrow("Invalid video data");
 		expect(mocks.dialog).not.toHaveBeenCalled();
+	});
+});
+
+describe("unsaved builder protection", () => {
+	it("asks before closing a dirty project and keeps working when cancelled", async () => {
+		let onClose: ((event: { preventDefault: () => void }) => void) | undefined;
+		const parent = {
+			on: vi.fn((_name: string, callback: typeof onClose) => {
+				onClose = callback;
+			}),
+			close: vi.fn(),
+		};
+		mocks.parent.mockReturnValue(parent as never);
+		const dirtyHandler = mocks.handle.mock.calls.find(
+			([name]) => name === "data-recruit:set-dirty",
+		)![1];
+		dirtyHandler({ sender: {} }, true);
+		const event = { preventDefault: vi.fn() };
+		mocks.message.mockResolvedValue({ response: 0 });
+		onClose!(event);
+		await vi.waitFor(() => expect(mocks.message).toHaveBeenCalledOnce());
+		expect(event.preventDefault).toHaveBeenCalledOnce();
+		expect(parent.close).not.toHaveBeenCalled();
+		await Promise.resolve();
+		mocks.message.mockResolvedValue({ response: 1 });
+		onClose!(event);
+		await vi.waitFor(() => expect(parent.close).toHaveBeenCalledOnce());
+		mocks.parent.mockReturnValue(null);
 	});
 });

@@ -179,7 +179,7 @@ export function EditorEmptyState({
 					<DialogHeader className={styles.previewEmptyDialogHeader}>
 						<div className={styles.previewEmptyDialogHeaderInner}>
 							<img
-								src="./openscreen.png"
+								src="./data-recruit.png"
 								alt=""
 								aria-hidden="true"
 								className={styles.previewEmptyDialogLogo}
@@ -213,7 +213,12 @@ export function EditorEmptyState({
 			</Dialog>
 
 			<div className={styles.previewEmptyInner}>
-				<img src="./openscreen.png" alt="" aria-hidden="true" className={styles.previewEmptyLogo} />
+				<img
+					src="./data-recruit.png"
+					alt=""
+					aria-hidden="true"
+					className={styles.previewEmptyLogo}
+				/>
 				<div className={styles.previewEmptyHeading}>
 					<h2 className={styles.previewEmptyTitle}>
 						{hasProject ? t("emptyState.titleHasAsset") : t("emptyState.title")}

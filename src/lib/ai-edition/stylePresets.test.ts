@@ -254,7 +254,7 @@ describe("parseStylePresetWallpaper", () => {
 	it("normalises a legacy bundled file:// wallpaper to its canonical path", () => {
 		expect(
 			parseStylePresetWallpaper(
-				"file:///Applications/Reaction Station.app/Contents/Resources/wallpapers/wallpaper4.jpg",
+				"file:///Applications/Data Recruit.app/Contents/Resources/wallpapers/wallpaper4.jpg",
 			),
 		).toBe("/wallpapers/wallpaper4.jpg");
 	});
@@ -326,7 +326,7 @@ describe("preset file format", () => {
 
 	it("rejects other formats and future versions", () => {
 		expect(() => parseStylePresetFile({ name: "x", appearance: appearance() })).toThrow(
-			/Not an Reaction Station style preset/,
+			/Not a Data Recruit style preset/,
 		);
 		expect(() =>
 			parseStylePresetFile({

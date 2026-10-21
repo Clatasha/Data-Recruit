@@ -62,8 +62,8 @@
 		"screens": "Ekranlar ({{count}})",
 		"windows": "Pencereler ({{count}})",
 		"emptyTitle": "Ekran veya pencere bulunamadı",
-		"emptyDescription": "Ekran kaydı iznini az önce verdiyseniz bu seçiciyi yeniden yükleyin. macOS'ta Reaction Station'i yeniden açmanız gerekebilir.",
-		"loadFailedDescription": "Reaction Station yakalama kaynaklarını yükleyemedi. Bu seçiciyi yeniden yükleyip tekrar deneyin.",
+		"emptyDescription": "Ekran kaydı iznini az önce verdiyseniz bu seçiciyi yeniden yükleyin. macOS'ta Data Recruit'i yeniden açmanız gerekebilir.",
+		"loadFailedDescription": "Data Recruit yakalama kaynaklarını yükleyemedi. Bu seçiciyi yeniden yükleyip tekrar deneyin.",
 		"defaultSourceName": "Ekran"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "Dil: {{language}}",
 	"systemLanguagePrompt": {
 		"title": "Sistem dilinizi kullanmak ister misiniz?",
-		"description": "Sistem diliniz {{language}} olarak algılandı. Reaction Station i {{language}} diline geçirmek ister misiniz?",
+		"description": "Sistem diliniz {{language}} olarak algılandı. Data Recruit i {{language}} diline geçirmek ister misiniz?",
 		"switch": "{{language}} diline geç",
 		"keepDefault": "Mevcut dili koru"
 	},
 	"softwareEncoderFallback": {
 		"title": "Yazılım kodlamasına geçildi",
-		"description": "Varsayılan GPU kodlayıcı başlatılamadığı için Reaction Station yazılım tabanlı H.264 kodlamasına geçti. Kayıt normal şekilde devam eder, ancak CPU kullanımı daha yüksek olabilir.",
+		"description": "Varsayılan GPU kodlayıcı başlatılamadığı için Data Recruit yazılım tabanlı H.264 kodlamasına geçti. Kayıt normal şekilde devam eder, ancak CPU kullanımı daha yüksek olabilir.",
 		"dismiss": "Anladım",
 		"dontShowAgain": "Bir daha gösterme"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "Denetleniyor…"
 	},
 	"permissions": {
-		"title": "Reaction Station'in birkaç izne ihtiyacı var",
+		"title": "Data Recruit'in birkaç izne ihtiyacı var",
 		"subtitle": "macOS her birini yalnızca bir kez ister. Bunları istediğiniz zaman Sistem Ayarları'ndan değiştirebilirsiniz.",
 		"level": {
 			"required": "Gerekli",
@@ -137,17 +137,17 @@
 			"continue": "Devam",
 			"allow": "İzin ver",
 			"openSettings": "Ayarları Aç",
-			"restart": "Reaction Station'i yeniden başlat",
+			"restart": "Data Recruit'i yeniden başlat",
 			"start": "Başla"
 		},
 		"help": {
-			"screenPrompt": "Ardından macOS, Sistem Ayarları'nda Reaction Station'i açmanızı isteyecek.",
-			"screenSettings": "Sistem Ayarları'nda Reaction Station'i açın. macOS uygulamayı kapatıp yeniden açmayı önerirse kabul edin: bu pencere geri gelecek.",
-			"screenNotListed": "Reaction Station listede yok mu? + düğmesine tıklayın ve Uygulamalar'dan Reaction Station'i seçin.",
-			"screenRestart": "İzin verildi. Reaction Station'in bunu kullanabilmesi için yeniden başlatılması gerekiyor.",
-			"screenRecurring": "İlk kaydınızda macOS, Reaction Station'in sistem seçicisi olmadan ekranınıza doğrudan erişip erişemeyeceğini soracak. İzin Ver'e tıklayın. macOS bunu zaman zaman yeniden sorar; bu normaldir.",
-			"systemAudioPrompt": "macOS, Reaction Station'in Mac'inizin sesini kaydetmesine izin vermenizi isteyecek.",
-			"systemAudioRequested": "Reddettiyseniz, Sistem Ayarları'nda “Yalnızca Sistem Sesi Kaydı” altında Reaction Station'i açın."
+			"screenPrompt": "Ardından macOS, Sistem Ayarları'nda Data Recruit'i açmanızı isteyecek.",
+			"screenSettings": "Sistem Ayarları'nda Data Recruit'i açın. macOS uygulamayı kapatıp yeniden açmayı önerirse kabul edin: bu pencere geri gelecek.",
+			"screenNotListed": "Data Recruit listede yok mu? + düğmesine tıklayın ve Uygulamalar'dan Data Recruit'i seçin.",
+			"screenRestart": "İzin verildi. Data Recruit'in bunu kullanabilmesi için yeniden başlatılması gerekiyor.",
+			"screenRecurring": "İlk kaydınızda macOS, Data Recruit'in sistem seçicisi olmadan ekranınıza doğrudan erişip erişemeyeceğini soracak. İzin Ver'e tıklayın. macOS bunu zaman zaman yeniden sorar; bu normaldir.",
+			"systemAudioPrompt": "macOS, Data Recruit'in Mac'inizin sesini kaydetmesine izin vermenizi isteyecek.",
+			"systemAudioRequested": "Reddettiyseniz, Sistem Ayarları'nda “Yalnızca Sistem Sesi Kaydı” altında Data Recruit'i açın."
 		},
 		"footer": {
 			"screenRequired": "Kayıt için ekran kaydı gereklidir.",

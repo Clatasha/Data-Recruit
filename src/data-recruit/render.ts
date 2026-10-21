@@ -32,11 +32,12 @@ function textBox(
 	maxSize: number,
 	color: string,
 	maxLines = 1,
+	style?: CardTemplate,
 ) {
-	let size = maxSize;
+	let size = maxSize * (style?.textScale ?? 1);
 	let lines: string[] = [];
 	while (size >= 10) {
-		ctx.font = `900 ${size}px Arial, sans-serif`;
+		ctx.font = `900 ${size}px ${style?.font ?? "Arial"}, sans-serif`;
 		lines = wrap(ctx, text, width);
 		if (
 			lines.length <= maxLines &&
@@ -54,12 +55,13 @@ function textBox(
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
 	ctx.lineJoin = "round";
-	ctx.lineWidth = Math.max(2, size * 0.065);
-	ctx.strokeStyle = "#131722";
+	ctx.lineWidth = size * (style?.outline ?? 0.065);
+	ctx.strokeStyle = style?.outlineColor ?? "#131722";
 	ctx.fillStyle = color;
 	lines.forEach((line, index) => {
 		const yy = y + height / 2 + (index - (lines.length - 1) / 2) * size * 1.15;
-		ctx.strokeText(line, x + width / 2, yy, width);
+		if (ctx.lineWidth > 0 && (style?.outline ?? 0.065) > 0)
+			ctx.strokeText(line, x + width / 2, yy, width);
 		ctx.fillText(line, x + width / 2, yy, width);
 	});
 	ctx.restore();
@@ -105,9 +107,9 @@ export function renderCard(
 	canvas.height = height;
 	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 	if (!ctx) throw new Error("Canvas unavailable");
-	const gap = Math.round(cardWidth * 0.028);
+	const gap = Math.round(cardWidth * (template.spacing ?? 0.028));
 	const width = cardWidth - gap;
-	const imageHeight = Math.round(height * 0.52);
+	const imageHeight = Math.round(height * (template.imageHeight ?? 0.52));
 	const titleHeight = Math.round(height * 0.12);
 	const rowHeight = (height - imageHeight - titleHeight) / template.rows.length;
 	ctx.fillStyle = "#ffffff";
@@ -130,6 +132,7 @@ export function renderCard(
 		width * 0.064,
 		template.textColor,
 		3,
+		template,
 	);
 	template.rows.forEach((row, index) => {
 		const y = imageHeight + titleHeight + index * rowHeight;
@@ -145,6 +148,7 @@ export function renderCard(
 			width * 0.075,
 			template.textColor,
 			2,
+			template,
 		);
 		textBox(
 			ctx,
@@ -156,6 +160,7 @@ export function renderCard(
 			width * 0.083,
 			row.valueColor,
 			2,
+			template,
 		);
 	});
 	return canvas;

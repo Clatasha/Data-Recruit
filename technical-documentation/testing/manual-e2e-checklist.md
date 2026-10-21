@@ -1004,3 +1004,13 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 | Build / branch | Platform | Result | Scope / skipped checks |
 | --- | --- | --- | --- |
 | 0.1.1 / feat/data-recruit | Linux headless Chromium, Node 24 | Partial | 36 focused tests passed for data parsing, source edits, Play/Export readiness, per-card replacement, merging image imports, Save As success/cancel, and document-write history. Browser checks passed playback without explicit build, crop edits, replacement using an unnumbered filename while retaining other cards, video intro/outro import and preview, MP4 export without rebuilding, and project JSON roundtrip with videos. Export verified with ffprobe/ffmpeg: 1080×1920 H.264 at 30 FPS; both video bookends present; intro audio RMS 0.088551, middle silence 0.0, outro RMS 0.088522. This Chromium lacks AAC encoding, so the checked output exercised the Opus-in-MP4 fallback. Vite production build and app/test TypeScript checks passed. Desktop computer-use, native file dialog interactions, and packaged editor audio handoff are skipped locally because native desktop APIs and Windows/macOS are unavailable; Windows CI covers the packaged builder, Save As handler, timed audio export and linked audio in the inherited editor. |
+
+
+### Data Recruit 0.1.2 — 2026-10-21 — Partial, Linux workspace
+
+- Passed: app and test TypeScript checks; 114 focused tests; translation validation; production renderer/Electron bundle build.
+- Browser: card duplication/removal/reordering with undo/redo; saved template rename and typography; IndexedDB recovery after reload; project roundtrip with trim/volume/export settings; direct export without rebuild.
+- Measured export: H.264 720×1280 at 24 FPS, 3.417 s video / 3.420 s Opus audio. Stereo channel RMS: intro at volume 0.5 = 0.044202, scroll = 0, outro at volume 0.25 = 0.022145.
+- Full suite: 4313 tests passed in 336 suites; 8 suites could not load because this workspace has no installed Electron desktop binary. No assertion failures.
+- Branding: builder/editor SVG; runtime PNG, tray and About; Windows ICO, macOS ICNS, Linux PNG sizes and regenerated Windows tile assets. Native close warning has a focused IPC test.
+- Skipped: installed native Windows/macOS visual pass, taskbar/tray/installer appearance and native compositor interaction; native computer control is unavailable here. Windows packaged smoke is queued through the feature branch workflow. This partial pass does not authorize a stable release promotion.

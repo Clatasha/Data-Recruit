@@ -219,12 +219,12 @@ vi.mock("@/contexts/I18nContext", () => ({
 			languageWithName: "Language: {{language}}",
 			"systemLanguagePrompt.title": "Use your system language?",
 			"systemLanguagePrompt.description":
-				"We detected English as your system language. Do you want to switch Reaction Station to English?",
+				"We detected English as your system language. Do you want to switch Data Recruit to English?",
 			"systemLanguagePrompt.keepDefault": "Keep current language",
 			"systemLanguagePrompt.switch": "Switch to English",
 			"softwareEncoderFallback.title": "Switched to software encoding",
 			"softwareEncoderFallback.description":
-				"The default GPU encoder failed to start, so Reaction Station fell back to software H.264 encoding. Recording should continue as normal, but CPU usage may be higher.",
+				"The default GPU encoder failed to start, so Data Recruit fell back to software H.264 encoding. Recording should continue as normal, but CPU usage may be higher.",
 			"softwareEncoderFallback.dismiss": "Got it",
 			"softwareEncoderFallback.dontShowAgain": "Don't show again",
 		};
@@ -2215,7 +2215,7 @@ describe("LaunchWindow software encoder fallback notice", () => {
 	});
 });
 
-describe("Reaction Station global recording actions", () => {
+describe("Data Recruit global recording actions", () => {
 	beforeEach(() => {
 		resetLaunchMocks();
 		stubElectronAPI(async () => displayOneSource);

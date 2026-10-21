@@ -4,13 +4,13 @@ Create scrolling image-and-data videos. Built by Clatasha on the Reaction Statio
 
 ![Data Recruit builder with sample image placeholders](docs/images/data-recruit-builder.jpg)
 
-## First version
+## Creating a video
 
 1. Select numbered images: `1.jpg`, `2.jpg`, or `01 - Movie.jpg`.
-2. Choose **Salary per movie**, **Facts & comparisons**, or save your own field/color template.
+2. Choose **Salary per movie**, **Facts & comparisons**, or save your own template.
 3. Choose **16:9 Landscape** or **9:16 Shorts**.
 4. Import a numbered `.txt` file and click **Build Timeline**.
-5. Preview, change speed/direction, adjust image crops, and export a 1080p 30 FPS MP4.
+5. Preview, change speed/direction, adjust image crops, and export an MP4 at 720p, 1080p or 1440p and 24, 30 or 60 FPS.
 
 Example text (each field maps to its own template section regardless of order):
 
@@ -32,11 +32,11 @@ Paycheck: $1M
 
 Missing fields, duplicate numbers and unmatched images are reported before building. Titles wrap and shrink to fit their section. Images retain their aspect ratio: **Fill** crops, **Fit** adds a dark background. Each image has horizontal and vertical crop controls.
 
-Templates can have 1–6 named data rows, each with a background color. Save custom templates for reuse. Salary is a starting preset, not a restriction on content.
+Templates can have 1–6 named rows, each with background and value colors. Adjust fonts, text size, outlines, spacing and image height. Save, rename and delete custom templates for reuse. Salary is a starting preset, not a restriction on content.
 
-**Save project** downloads a portable JSON containing the data, template, image files, crop settings, format and image bookends. **Open project** restores it. Save this file before closing if you want to edit the cards later.
+**Save project** downloads a portable JSON containing the data, template, image files, crop settings, format, export options, card order and image/video bookends. **Open project** restores it. The builder also autosaves a recovery copy locally and offers to restore it on the next launch. Save a project file to keep a portable copy. Unsaved changes trigger a close warning. Undo and Redo cover card, template and media edits.
 
-Optional intro/outro slots accept images or videos. Images have adjustable duration; videos play with their original audio, can be shortened, and have a mute switch. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can add music, narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
+Optional intro/outro slots accept images or videos. Images have adjustable duration; videos play with their original audio, have start/end trimming, volume and mute controls. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can add music, narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
 
 ## Testing builds
 
@@ -46,7 +46,7 @@ The **Data Recruit Windows test** Actions workflow bootstraps the Reaction Stati
 
 Node 22.22.1 and npm 10.9.4. Run `npm ci`, then `npm run dev`. Browser preview: `NO_ELECTRON=1 npm run dev -- --host 127.0.0.1`, open `http://127.0.0.1:5173/?windowType=data-recruit`. MP4 export needs Chromium's H.264 WebCodecs encoder. Desktop timeline finishing uses the inherited native compositor.
 
-Play and Export automatically use the current cards, including after edits. Missing inputs are listed beside Build Timeline. Select a card to **Replace image** with any filename; numbered imports add or replace matching images without discarding the other cards. Desktop MP4 export opens a **Save As** dialog.
+Play and Export automatically use the current cards, including after edits. Missing inputs are listed beside Build Timeline. Select a card to **Replace image** with any filename; numbered imports add or replace matching images without discarding the other cards. Duplicate or remove cards from the inspector; drag image tiles to reorder them, or use Earlier/Later. Desktop MP4 export opens a **Save As** dialog.
 
 Run `npx tsc --noEmit`, `npx tsc -p tsconfig.test.json --noEmit`, `npm test`. Build Windows: `npm run build:win -- --publish never`.
 

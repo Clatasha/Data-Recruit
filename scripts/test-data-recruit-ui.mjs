@@ -27,13 +27,13 @@ for (const [name, color, tone] of [
 		"-i",
 		`sine=frequency=${tone}:sample_rate=48000:duration=1`,
 		"-c:v",
-		"libx264",
+		"libvpx",
 		"-pix_fmt",
 		"yuv420p",
 		"-c:a",
-		"aac",
+		"libopus",
 		"-shortest",
-		path.join(output, `${name}.mp4`),
+		path.join(output, `${name}.webm`),
 	]);
 }
 const application = await electron.launch({
@@ -68,6 +68,10 @@ try {
 			buffer: Buffer.from(content, "base64"),
 		})),
 	);
+	await page.getByRole("button", { name: "Duplicate card", exact: true }).click();
+	assert.equal(await page.locator(".dr-images button").count(), 4);
+	await page.getByRole("button", { name: "Undo", exact: true }).click();
+	assert.equal(await page.locator(".dr-images button").count(), 3);
 	await page.getByRole("button", { name: /Play/ }).click();
 	await page.waitForFunction(
 		() => Number(document.querySelector('[aria-label="Timeline position"]').value) > 0.2,
@@ -125,11 +129,11 @@ try {
 		.fill("1\nTitle: Export test\nBudget: $1M\nBox Office: $5M\nPaycheck: $100K");
 	await page
 		.getByLabel("Choose intro image or video")
-		.setInputFiles(path.join(output, "intro.mp4"));
+		.setInputFiles(path.join(output, "intro.webm"));
 	await page.getByRole("status").filter({ hasText: "Intro video added" }).waitFor();
 	await page
 		.getByLabel("Choose outro image or video")
-		.setInputFiles(path.join(output, "outro.mp4"));
+		.setInputFiles(path.join(output, "outro.webm"));
 	await page.getByRole("status").filter({ hasText: "Outro video added" }).waitFor();
 	await page.getByRole("button", { name: "Export MP4" }).click();
 	await page.getByRole("status").filter({ hasText: "MP4 ready" }).waitFor({ timeout: 120_000 });
@@ -183,5 +187,5 @@ try {
 		"Data Recruit: playback after edits, image replacement, video bookends with timed audio, Save As export, Shorts and editor handoff passed.",
 	);
 } finally {
-	await application.close();
+	await application.evaluate(({ app }) => app.exit(0));
 }

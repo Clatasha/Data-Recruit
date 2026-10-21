@@ -48,7 +48,7 @@
 		"microphoneDefaulted": "Micro choisi non identifié. Enregistrement de l'entrée par défaut.",
 		"microphoneUnavailable": "Cette version de macOS ne permet pas d'enregistrer le micro. Enregistrement sans lui.",
 		"permissionDenied": "Permission d'enregistrement refusée. Veuillez autoriser l'enregistrement d'écran.",
-		"accessibilityAllowAndRetry": "Autorisez l'accès Accessibilité pour Reaction Station, puis appuyez de nouveau sur enregistrer pour lancer le compte à rebours.",
+		"accessibilityAllowAndRetry": "Autorisez l'accès Accessibilité pour Data Recruit, puis appuyez de nouveau sur enregistrer pour lancer le compte à rebours.",
 		"cursorAccessibilityUnavailable": "L'accès à Accessibilité est désactivé. L'enregistrement continue, mais les effets du curseur peuvent être limités. Activez-le dans Réglages Système pour profiter de tous les effets du curseur.",
 		"selectSource": "Veuillez sélectionner une source à enregistrer"
 	},
@@ -172,7 +172,7 @@
 		"detectedLanguage": "Langue détectée : {{language}}",
 		"noAudioTrack": "Aucune piste audio",
 		"noAudioTrackHint": "Ce média n'a pas de piste audio — il n'y a rien à transcrire.",
-		"mediaUnreadableHint": "Impossible de lire l'audio de ce média. Vérifiez qu'Reaction Station a accès au dossier qui le contient, puis régénérez.",
+		"mediaUnreadableHint": "Impossible de lire l'audio de ce média. Vérifiez qu'Data Recruit a accès au dossier qui le contient, puis régénérez.",
 		"noSpeechDetected": "Aucune parole détectée"
 	},
 	"exportDialog": {
@@ -203,7 +203,7 @@
 		"exportedVideo": "Vidéo exportée",
 		"exportedVideoOf": "de vidéo exportée en",
 		"showInFolder": "Afficher dans le dossier",
-		"starPrompt": "Reaction Station est gratuit et sous licence MIT. Une étoile sur GitHub aide d'autres personnes à le découvrir.",
+		"starPrompt": "Data Recruit est gratuit et sous licence MIT. Une étoile sur GitHub aide d'autres personnes à le découvrir.",
 		"starPromptNoThanks": "Non merci",
 		"rateOnStore": "Noter sur le Microsoft Store",
 		"exportFailed": "Échec de l'export",
@@ -274,7 +274,7 @@
 			"disclaimer": "La transcription de votre vidéo sera envoyée au fournisseur que vous choisissez. Rien n'est partagé tant que vous n'en connectez pas un."
 		},
 		"authorUser": "Vous",
-		"authorAssistant": "Reaction Station",
+		"authorAssistant": "Data Recruit",
 		"rewindToMessage": "Revenir à ce message",
 		"rewindTip": "Revenir à ce message. Les modifications suivantes sont annulées.",
 		"copyMessage": "Copier le message",
@@ -429,7 +429,7 @@
 	},
 	"mcpServer": {
 		"title": "Serveur MCP",
-		"description": "Permettez aux clients MCP que vous lancez vous-même, comme Claude Code ou Codex, d’utiliser les outils d’édition IA sur le projet ouvert dans l’éditeur. Ils se connectent avec leurs propres comptes ; Reaction Station ne les voit jamais.",
+		"description": "Permettez aux clients MCP que vous lancez vous-même, comme Claude Code ou Codex, d’utiliser les outils d’édition IA sur le projet ouvert dans l’éditeur. Ils se connectent avec leurs propres comptes ; Data Recruit ne les voit jamais.",
 		"enableLabel": "Serveur",
 		"enable": "Activer le serveur MCP",
 		"editsLabel": "Modifications du projet",

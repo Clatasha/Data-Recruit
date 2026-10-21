@@ -476,7 +476,7 @@ export function lookFromLegacyEditor(legacyEditor: unknown): Fields {
 /** Validates a parsed preset file (the JSON value, not the text). */
 export function parseStylePresetFile(json: unknown): StylePresetFile {
 	if (!isRecord(json) || json.format !== STYLE_PRESET_FORMAT) {
-		throw new TypeError("Not an Reaction Station style preset file.");
+		throw new TypeError("Not a Data Recruit style preset file.");
 	}
 	if (json.version !== STYLE_PRESET_FORMAT_VERSION) {
 		throw new TypeError(

@@ -42,7 +42,7 @@
 		"cameraCaptureUnavailable": "Kamera açılamadı. Kamerasız kaydediliyor.",
 		"microphoneDefaulted": "Seçilen mikrofon belirlenemedi. Varsayılan giriş kaydediliyor.",
 		"microphoneUnavailable": "Bu macOS sürümü mikrofonu kaydedemiyor. Mikrofonsuz kaydediliyor.",
-		"accessibilityAllowAndRetry": "Reaction Station için Erişilebilirlik erişimine izin verin, ardından geri sayımı başlatmak için tekrar kayda basın.",
+		"accessibilityAllowAndRetry": "Data Recruit için Erişilebilirlik erişimine izin verin, ardından geri sayımı başlatmak için tekrar kayda basın.",
 		"cursorAccessibilityUnavailable": "Erişilebilirlik erişimi kapalı. Kayıt devam edecek ancak imleç efektleri sınırlı olabilir. Tüm imleç efektlerini kullanmak için Sistem Ayarları'ndan erişimi açın.",
 		"selectSource": "Lütfen kayıt için bir kaynak seçin"
 	},
@@ -172,7 +172,7 @@
 		"detectedLanguage": "Algılanan dil: {{language}}",
 		"noAudioTrack": "Ses parçası yok",
 		"noAudioTrackHint": "Bu medyada ses parçası yok — metne dökülecek bir şey bulunmuyor.",
-		"mediaUnreadableHint": "Bu medyanın sesi okunamadı. Reaction Station'in bulunduğu klasöre erişebildiğinden emin olun, ardından yeniden oluşturun.",
+		"mediaUnreadableHint": "Bu medyanın sesi okunamadı. Data Recruit'in bulunduğu klasöre erişebildiğinden emin olun, ardından yeniden oluşturun.",
 		"noSpeechDetected": "Konuşma algılanmadı"
 	},
 	"exportDialog": {
@@ -202,7 +202,7 @@
 		"exportedGif": "GIF dışa aktarıldı",
 		"exportedVideo": "Video dışa aktarıldı",
 		"showInFolder": "Klasörde göster",
-		"starPrompt": "Reaction Station ücretsizdir ve MIT lisanslıdır. GitHub'da bir yıldız, başkalarının onu bulmasına yardımcı olur.",
+		"starPrompt": "Data Recruit ücretsizdir ve MIT lisanslıdır. GitHub'da bir yıldız, başkalarının onu bulmasına yardımcı olur.",
 		"starPromptNoThanks": "Hayır, teşekkürler",
 		"rateOnStore": "Microsoft Store'da değerlendir",
 		"exportFailed": "Dışa aktarma başarısız oldu",
@@ -274,7 +274,7 @@
 			"disclaimer": "Videonuzun transkripsiyonu seçtiğiniz sağlayıcıya gönderilecek. Bir sağlayıcı bağlamadan hiçbir şey paylaşılmaz."
 		},
 		"authorUser": "Siz",
-		"authorAssistant": "Reaction Station",
+		"authorAssistant": "Data Recruit",
 		"rewindToMessage": "Bu mesaja geri sar",
 		"rewindTip": "Bu mesaja geri sar. Sonraki değişiklikler geri alınır.",
 		"copyMessage": "Mesajı kopyala",
@@ -429,7 +429,7 @@
 	},
 	"mcpServer": {
 		"title": "MCP sunucusu",
-		"description": "Claude Code veya Codex gibi kendi çalıştırdığınız MCP istemcilerinin, düzenleyicide açık olan projede yapay zekâ düzenleme araçlarını kullanmasına izin verin. Kendi hesaplarıyla oturum açarlar; Reaction Station bunları hiçbir zaman görmez.",
+		"description": "Claude Code veya Codex gibi kendi çalıştırdığınız MCP istemcilerinin, düzenleyicide açık olan projede yapay zekâ düzenleme araçlarını kullanmasına izin verin. Kendi hesaplarıyla oturum açarlar; Data Recruit bunları hiçbir zaman görmez.",
 		"enableLabel": "Sunucu",
 		"enable": "MCP sunucusunu etkinleştir",
 		"editsLabel": "Proje düzenlemeleri",

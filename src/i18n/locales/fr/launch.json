@@ -62,8 +62,8 @@
 		"screens": "Écrans ({{count}})",
 		"windows": "Fenêtres ({{count}})",
 		"emptyTitle": "Aucun écran ni fenêtre trouvé",
-		"emptyDescription": "Si vous venez d'accorder l'autorisation d'enregistrement d'écran, rechargez ce sélecteur. Sur macOS, il peut être nécessaire de rouvrir Reaction Station.",
-		"loadFailedDescription": "Reaction Station n'a pas pu charger les sources de capture. Rechargez ce sélecteur et réessayez.",
+		"emptyDescription": "Si vous venez d'accorder l'autorisation d'enregistrement d'écran, rechargez ce sélecteur. Sur macOS, il peut être nécessaire de rouvrir Data Recruit.",
+		"loadFailedDescription": "Data Recruit n'a pas pu charger les sources de capture. Rechargez ce sélecteur et réessayez.",
 		"defaultSourceName": "Écran"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "Langue : {{language}}",
 	"systemLanguagePrompt": {
 		"title": "Utiliser la langue de votre système ?",
-		"description": "Nous avons détecté {{language}} comme langue système. Voulez-vous passer Reaction Station en {{language}} ?",
+		"description": "Nous avons détecté {{language}} comme langue système. Voulez-vous passer Data Recruit en {{language}} ?",
 		"switch": "Passer en {{language}}",
 		"keepDefault": "Conserver la langue actuelle"
 	},
 	"softwareEncoderFallback": {
 		"title": "Passage à l'encodage logiciel",
-		"description": "L'encodeur GPU par défaut n'a pas pu démarrer, Reaction Station est donc passé à l'encodage H.264 logiciel. L'enregistrement devrait continuer normalement, mais l'utilisation du processeur peut être plus élevée.",
+		"description": "L'encodeur GPU par défaut n'a pas pu démarrer, Data Recruit est donc passé à l'encodage H.264 logiciel. L'enregistrement devrait continuer normalement, mais l'utilisation du processeur peut être plus élevée.",
 		"dismiss": "Compris",
 		"dontShowAgain": "Ne plus afficher"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "Recherche…"
 	},
 	"permissions": {
-		"title": "Reaction Station a besoin de quelques autorisations",
+		"title": "Data Recruit a besoin de quelques autorisations",
 		"subtitle": "macOS vous demande de les accorder une seule fois. Vous pouvez les modifier à tout moment dans Réglages Système.",
 		"level": {
 			"required": "Obligatoire",
@@ -137,17 +137,17 @@
 			"continue": "Continuer",
 			"allow": "Autoriser",
 			"openSettings": "Ouvrir Réglages",
-			"restart": "Redémarrer Reaction Station",
+			"restart": "Redémarrer Data Recruit",
 			"start": "Commencer"
 		},
 		"help": {
-			"screenPrompt": "macOS vous demandera ensuite d'activer Reaction Station dans Réglages Système.",
-			"screenSettings": "Dans Réglages Système, activez Reaction Station. Si macOS propose de le quitter et le rouvrir, acceptez : cette fenêtre reviendra.",
-			"screenNotListed": "Reaction Station n'apparaît pas dans la liste ? Cliquez sur +, puis choisissez Reaction Station dans Applications.",
-			"screenRestart": "Autorisé. Reaction Station doit redémarrer pour pouvoir l'utiliser.",
-			"screenRecurring": "À votre premier enregistrement, macOS vous demandera si Reaction Station peut accéder directement à votre écran, sans passer par le sélecteur du système. Cliquez sur Autoriser. macOS repose la question de temps en temps, c'est normal.",
-			"systemAudioPrompt": "macOS vous demandera d'autoriser Reaction Station à enregistrer le son de votre Mac.",
-			"systemAudioRequested": "Si vous avez refusé, activez Reaction Station sous « Enregistrement des sons du système uniquement » dans Réglages Système."
+			"screenPrompt": "macOS vous demandera ensuite d'activer Data Recruit dans Réglages Système.",
+			"screenSettings": "Dans Réglages Système, activez Data Recruit. Si macOS propose de le quitter et le rouvrir, acceptez : cette fenêtre reviendra.",
+			"screenNotListed": "Data Recruit n'apparaît pas dans la liste ? Cliquez sur +, puis choisissez Data Recruit dans Applications.",
+			"screenRestart": "Autorisé. Data Recruit doit redémarrer pour pouvoir l'utiliser.",
+			"screenRecurring": "À votre premier enregistrement, macOS vous demandera si Data Recruit peut accéder directement à votre écran, sans passer par le sélecteur du système. Cliquez sur Autoriser. macOS repose la question de temps en temps, c'est normal.",
+			"systemAudioPrompt": "macOS vous demandera d'autoriser Data Recruit à enregistrer le son de votre Mac.",
+			"systemAudioRequested": "Si vous avez refusé, activez Data Recruit sous « Enregistrement des sons du système uniquement » dans Réglages Système."
 		},
 		"footer": {
 			"screenRequired": "L'enregistrement de l'écran est nécessaire pour enregistrer.",

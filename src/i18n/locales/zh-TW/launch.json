@@ -62,8 +62,8 @@
 		"screens": "螢幕 ({{count}})",
 		"windows": "視窗 ({{count}})",
 		"emptyTitle": "找不到螢幕或視窗",
-		"emptyDescription": "如果您剛授予螢幕錄製權限，請重新載入此選擇器。在 macOS 上，您可能需要重新開啟 Reaction Station。",
-		"loadFailedDescription": "Reaction Station 無法載入擷取來源。請重新載入此選擇器並再試一次。",
+		"emptyDescription": "如果您剛授予螢幕錄製權限，請重新載入此選擇器。在 macOS 上，您可能需要重新開啟 Data Recruit。",
+		"loadFailedDescription": "Data Recruit 無法載入擷取來源。請重新載入此選擇器並再試一次。",
 		"defaultSourceName": "螢幕"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "語言：{{language}}",
 	"systemLanguagePrompt": {
 		"title": "要使用系統語言嗎？",
-		"description": "偵測到系統語言為 {{language}}。要將 Reaction Station 切換為 {{language}} 嗎？",
+		"description": "偵測到系統語言為 {{language}}。要將 Data Recruit 切換為 {{language}} 嗎？",
 		"switch": "切換為 {{language}}",
 		"keepDefault": "保持目前語言"
 	},
 	"softwareEncoderFallback": {
 		"title": "已切換至軟體編碼",
-		"description": "預設 GPU 編碼器啟動失敗，Reaction Station 已改用軟體 H.264 編碼。錄製會照常繼續，但 CPU 使用率可能較高。",
+		"description": "預設 GPU 編碼器啟動失敗，Data Recruit 已改用軟體 H.264 編碼。錄製會照常繼續，但 CPU 使用率可能較高。",
 		"dismiss": "知道了",
 		"dontShowAgain": "不再顯示"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "檢查中…"
 	},
 	"permissions": {
-		"title": "Reaction Station 需要一些權限",
+		"title": "Data Recruit 需要一些權限",
 		"subtitle": "macOS 只會請你授予一次。你可以隨時在「系統設定」中更改。",
 		"level": {
 			"required": "必要",
@@ -137,17 +137,17 @@
 			"continue": "繼續",
 			"allow": "允許",
 			"openSettings": "打開設定",
-			"restart": "重新啟動 Reaction Station",
+			"restart": "重新啟動 Data Recruit",
 			"start": "開始使用"
 		},
 		"help": {
-			"screenPrompt": "接下來 macOS 會請你在「系統設定」中開啟 Reaction Station。",
-			"screenSettings": "請在「系統設定」中開啟 Reaction Station。如果 macOS 提議結束並重新打開，請同意：此視窗會再次出現。",
-			"screenNotListed": "列表中沒有 Reaction Station？按一下 +，然後在「應用程式」中選擇 Reaction Station。",
-			"screenRestart": "已允許。Reaction Station 需要重新啟動才能使用。",
-			"screenRecurring": "第一次錄製時，macOS 會詢問是否允許 Reaction Station 不透過系統選擇器直接取用你的螢幕。請按一下「允許」。macOS 會不時再次詢問，這是正常的。",
-			"systemAudioPrompt": "macOS 會請你允許 Reaction Station 錄製 Mac 播放的聲音。",
-			"systemAudioRequested": "如果你拒絕了，請在「系統設定」的「僅限系統錄音」中開啟 Reaction Station。"
+			"screenPrompt": "接下來 macOS 會請你在「系統設定」中開啟 Data Recruit。",
+			"screenSettings": "請在「系統設定」中開啟 Data Recruit。如果 macOS 提議結束並重新打開，請同意：此視窗會再次出現。",
+			"screenNotListed": "列表中沒有 Data Recruit？按一下 +，然後在「應用程式」中選擇 Data Recruit。",
+			"screenRestart": "已允許。Data Recruit 需要重新啟動才能使用。",
+			"screenRecurring": "第一次錄製時，macOS 會詢問是否允許 Data Recruit 不透過系統選擇器直接取用你的螢幕。請按一下「允許」。macOS 會不時再次詢問，這是正常的。",
+			"systemAudioPrompt": "macOS 會請你允許 Data Recruit 錄製 Mac 播放的聲音。",
+			"systemAudioRequested": "如果你拒絕了，請在「系統設定」的「僅限系統錄音」中開啟 Data Recruit。"
 		},
 		"footer": {
 			"screenRequired": "錄製需要螢幕錄製權限。",

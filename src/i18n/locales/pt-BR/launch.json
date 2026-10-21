@@ -62,8 +62,8 @@
 		"screens": "Telas ({{count}})",
 		"windows": "Janelas ({{count}})",
 		"emptyTitle": "Nenhuma tela ou janela encontrada",
-		"emptyDescription": "Se você acabou de conceder a permissão de gravação de tela, recarregue este seletor. No macOS, pode ser necessário reabrir o Reaction Station.",
-		"loadFailedDescription": "O Reaction Station não conseguiu carregar as fontes de captura. Recarregue este seletor e tente novamente.",
+		"emptyDescription": "Se você acabou de conceder a permissão de gravação de tela, recarregue este seletor. No macOS, pode ser necessário reabrir o Data Recruit.",
+		"loadFailedDescription": "O Data Recruit não conseguiu carregar as fontes de captura. Recarregue este seletor e tente novamente.",
 		"defaultSourceName": "Tela"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "Idioma: {{language}}",
 	"systemLanguagePrompt": {
 		"title": "Usar o idioma do seu sistema?",
-		"description": "Detectamos {{language}} como o idioma do seu sistema. Deseja mudar o Reaction Station para {{language}}?",
+		"description": "Detectamos {{language}} como o idioma do seu sistema. Deseja mudar o Data Recruit para {{language}}?",
 		"switch": "Mudar para {{language}}",
 		"keepDefault": "Manter idioma atual"
 	},
 	"softwareEncoderFallback": {
 		"title": "Mudou para codificação por software",
-		"description": "O codificador de GPU padrão não pôde ser iniciado, então o Reaction Station passou a usar a codificação H.264 por software. A gravação deve continuar normalmente, mas o uso da CPU pode ser maior.",
+		"description": "O codificador de GPU padrão não pôde ser iniciado, então o Data Recruit passou a usar a codificação H.264 por software. A gravação deve continuar normalmente, mas o uso da CPU pode ser maior.",
 		"dismiss": "Entendi",
 		"dontShowAgain": "Não mostrar novamente"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "Verificando…"
 	},
 	"permissions": {
-		"title": "O Reaction Station precisa de algumas permissões",
+		"title": "O Data Recruit precisa de algumas permissões",
 		"subtitle": "O macOS pede que você conceda cada uma apenas uma vez. Você pode alterá-las a qualquer momento nos Ajustes do Sistema.",
 		"level": {
 			"required": "Obrigatória",
@@ -137,17 +137,17 @@
 			"continue": "Continuar",
 			"allow": "Permitir",
 			"openSettings": "Abrir Ajustes",
-			"restart": "Reiniciar o Reaction Station",
+			"restart": "Reiniciar o Data Recruit",
 			"start": "Começar"
 		},
 		"help": {
-			"screenPrompt": "Em seguida, o macOS pedirá que você ative o Reaction Station nos Ajustes do Sistema.",
-			"screenSettings": "Nos Ajustes do Sistema, ative o Reaction Station. Se o macOS oferecer encerrar e reabrir o app, aceite: esta janela voltará.",
-			"screenNotListed": "O Reaction Station não está na lista? Clique em + e escolha o Reaction Station em Aplicativos.",
-			"screenRestart": "Permitido. O Reaction Station precisa reiniciar para usá-la.",
-			"screenRecurring": "Na sua primeira gravação, o macOS perguntará se o Reaction Station pode acessar sua tela diretamente, sem o seletor do sistema. Clique em Permitir. O macOS pergunta de novo de vez em quando; isso é normal.",
-			"systemAudioPrompt": "O macOS pedirá que você permita ao Reaction Station gravar o som do seu Mac.",
-			"systemAudioRequested": "Se você recusou, ative o Reaction Station em “Apenas Gravação do Áudio do Sistema” nos Ajustes do Sistema."
+			"screenPrompt": "Em seguida, o macOS pedirá que você ative o Data Recruit nos Ajustes do Sistema.",
+			"screenSettings": "Nos Ajustes do Sistema, ative o Data Recruit. Se o macOS oferecer encerrar e reabrir o app, aceite: esta janela voltará.",
+			"screenNotListed": "O Data Recruit não está na lista? Clique em + e escolha o Data Recruit em Aplicativos.",
+			"screenRestart": "Permitido. O Data Recruit precisa reiniciar para usá-la.",
+			"screenRecurring": "Na sua primeira gravação, o macOS perguntará se o Data Recruit pode acessar sua tela diretamente, sem o seletor do sistema. Clique em Permitir. O macOS pergunta de novo de vez em quando; isso é normal.",
+			"systemAudioPrompt": "O macOS pedirá que você permita ao Data Recruit gravar o som do seu Mac.",
+			"systemAudioRequested": "Se você recusou, ative o Data Recruit em “Apenas Gravação do Áudio do Sistema” nos Ajustes do Sistema."
 		},
 		"footer": {
 			"screenRequired": "A gravação de tela é necessária para gravar.",

@@ -133,7 +133,7 @@ export async function requestMacCursorAccessibilityAccess(): Promise<MacCursorAc
 	// Nothing is lost on the one path that does ask the user for the grant: reaching
 	// `not-determined` means the helper RAN, and it calls AXIsProcessTrustedWithOptions
 	// with kAXTrustedCheckOptionPrompt itself on every start
-	// (OpenScreenMacOSCursorHelper/main.swift), which is what puts Reaction Station in the
+	// (OpenScreenMacOSCursorHelper/main.swift), which is what puts Data Recruit in the
 	// Accessibility list for the user to tick.
 	let accessibilityTrusted = false;
 	try {

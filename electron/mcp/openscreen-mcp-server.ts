@@ -73,17 +73,17 @@ export interface McpToolDeps {
 }
 
 const NO_PROJECT_MESSAGE =
-	"No project is open in the Reaction Station editor. Ask the user to open one in Reaction Station, then retry.";
+	"No project is open in the Data Recruit editor. Ask the user to open one in Data Recruit, then retry.";
 
 const APPLY_FAILURE_MESSAGES: Record<Exclude<McpApplyResult, "applied">, string> = {
 	conflict:
 		"The edit was NOT applied: the project changed in the editor while this call ran. Call getCurrentDocument to re-read it, then retry.",
-	"save-failed": "The edit was NOT applied: Reaction Station could not save the project.",
+	"save-failed": "The edit was NOT applied: Data Recruit could not save the project.",
 	"no-live-document": NO_PROJECT_MESSAGE,
 	"no-editor": NO_PROJECT_MESSAGE,
 	// Not "NOT applied": the editor may have saved it and only the answer was lost.
 	timeout:
-		"Reaction Station did not confirm this edit in time. Call getCurrentDocument to see whether it landed before retrying.",
+		"Data Recruit did not confirm this edit in time. Call getCurrentDocument to see whether it landed before retrying.",
 };
 
 const DESTRUCTIVE_TOOLS: ReadonlySet<string> = new Set([
@@ -94,7 +94,7 @@ const DESTRUCTIVE_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 const MCP_PREAMBLE = [
-	"These tools act on the project currently open in the Reaction Station editor. Every edit is saved straight away and appears in the editor, where the user can undo it with Ctrl/Cmd+Z. Nothing here records, exports or imports media.",
+	"These tools act on the project currently open in the Data Recruit editor. Every edit is saved straight away and appears in the editor, where the user can undo it with Ctrl/Cmd+Z. Nothing here records, exports or imports media.",
 	"Before a series of edits, call createCheckpoint. Undo is one step per call, so if the result is not what the user wanted, restoreCheckpoint takes the project back in one step instead of many.",
 	"",
 ].join("\n");
@@ -155,7 +155,7 @@ export function createToolRunner(deps: McpToolDeps) {
 	): Promise<CallToolResult> {
 		if (!deps.editsAllowed()) {
 			return textResult(
-				"Project edits are turned off in Reaction Station, so the checkpoint was NOT restored. Ask the user to re-enable 'Project edits' in Settings → AI, or to undo the edits themselves.",
+				"Project edits are turned off in Data Recruit, so the checkpoint was NOT restored. Ask the user to re-enable 'Project edits' in Settings → AI, or to undo the edits themselves.",
 				true,
 			);
 		}
@@ -163,7 +163,7 @@ export function createToolRunner(deps: McpToolDeps) {
 		const checkpoint = typeof id === "string" ? checkpoints.get(id) : undefined;
 		if (!checkpoint) {
 			return textResult(
-				"Unknown checkpointId. Checkpoints last until Reaction Station quits, and only the 20 most recent are kept.",
+				"Unknown checkpointId. Checkpoints last until Data Recruit quits, and only the 20 most recent are kept.",
 				true,
 			);
 		}

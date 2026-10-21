@@ -65,7 +65,7 @@ const SUBCOMMANDS = new Set([
 	"-h",
 ]);
 
-export const CLI_USAGE = `Reaction Station CLI
+export const CLI_USAGE = `Data Recruit CLI
 
 Usage:
   openscreen export <project.openscreen> [options]   Render a project to MP4/GIF

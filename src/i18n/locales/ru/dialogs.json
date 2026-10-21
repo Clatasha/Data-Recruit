@@ -80,13 +80,13 @@
 		"saveVideo": "Сохранить экспортированное видео",
 		"selectVideo": "Выбрать видеофайл",
 		"selectAudio": "Выбрать аудиофайл",
-		"saveProject": "Сохранить проект Reaction Station",
-		"openProject": "Открыть проект Reaction Station",
+		"saveProject": "Сохранить проект Data Recruit",
+		"openProject": "Открыть проект Data Recruit",
 		"gifImage": "GIF изображение",
 		"mp4Video": "MP4 видео",
 		"videoFiles": "Видеофайлы",
 		"audioFiles": "Аудиофайлы",
-		"openscreenProject": "Проект Reaction Station",
+		"openscreenProject": "Проект Data Recruit",
 		"allFiles": "Все файлы"
 	}
 }

@@ -5,6 +5,42 @@ import { app, BrowserWindow, dialog, ipcMain } from "electron";
 
 /** Generated files are app-owned; the renderer cannot choose an arbitrary write path. */
 export function registerDataRecruitIpc() {
+	const guarded = new WeakSet<BrowserWindow>();
+	const dirtyWindows = new WeakMap<BrowserWindow, boolean>();
+	ipcMain.handle("data-recruit:set-dirty", (event, dirty: boolean) => {
+		const parent = BrowserWindow.fromWebContents(event.sender);
+		if (!parent) return;
+		dirtyWindows.set(parent, dirty === true);
+		if (guarded.has(parent)) return;
+		guarded.add(parent);
+		let confirming = false;
+		parent.on("close", (event) => {
+			if (!dirtyWindows.get(parent)) return;
+			event.preventDefault();
+			if (confirming) return;
+			confirming = true;
+			void dialog
+				.showMessageBox(parent, {
+					type: "question",
+					title: "Unsaved Data Recruit project",
+					message: "Close without saving a project file?",
+					detail:
+						"Use Save project to keep a portable copy. Changes since the last recovery save may be lost.",
+					buttons: ["Keep working", "Close without saving"],
+					defaultId: 0,
+					cancelId: 0,
+				})
+				.then((result) => {
+					if (result.response === 1) {
+						dirtyWindows.set(parent, false);
+						parent.close();
+					}
+				})
+				.finally(() => {
+					confirming = false;
+				});
+		});
+	});
 	ipcMain.handle("data-recruit:export-video", async (event, bytes: ArrayBuffer) => {
 		if (!(bytes instanceof ArrayBuffer) || bytes.byteLength > 1024 * 1024 * 1024)
 			throw new Error("Invalid video data.");

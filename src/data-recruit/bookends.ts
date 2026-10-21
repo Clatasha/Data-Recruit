@@ -4,7 +4,14 @@ export type Bookend = {
 	duration: number;
 } & (
 	| { kind: "image"; media: HTMLImageElement }
-	| { kind: "video"; media: HTMLVideoElement; sourceDuration: number; muted: boolean }
+	| {
+			kind: "video";
+			media: HTMLVideoElement;
+			sourceDuration: number;
+			muted: boolean;
+			start?: number;
+			volume?: number;
+	  }
 );
 
 export const loadImage = (url: string): Promise<HTMLImageElement> =>
@@ -21,6 +28,8 @@ export async function loadBookend(
 	kind: "image" | "video",
 	duration?: number,
 	muted = false,
+	start = 0,
+	volume = 1,
 ): Promise<Bookend> {
 	if (kind === "image")
 		return {
@@ -52,13 +61,16 @@ export async function loadBookend(
 			finish(new Error(`Cannot play ${name}. Try an MP4 with H.264 video and AAC audio.`));
 		media.src = url;
 	});
+	start = Math.max(0, Math.min(media.duration - 0.1, start));
 	return {
+		start,
+		volume,
 		kind,
 		name,
 		url,
 		media,
 		sourceDuration: media.duration,
-		duration: Math.max(0.1, Math.min(media.duration, duration ?? media.duration)),
+		duration: Math.max(0.1, Math.min(media.duration - start, duration ?? media.duration)),
 		muted,
 	};
 }
@@ -70,6 +82,8 @@ export function serializeBookend(item: Bookend | null) {
 				name: item.name,
 				url: item.url,
 				duration: item.duration,
+				start: item.kind === "video" ? (item.start ?? 0) : 0,
+				volume: item.kind === "video" ? (item.volume ?? 1) : 1,
 				muted: item.kind === "video" ? item.muted : false,
 			}
 		: null;

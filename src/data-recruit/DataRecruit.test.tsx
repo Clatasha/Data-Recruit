@@ -99,3 +99,32 @@ describe("builder actions", () => {
 		);
 	});
 });
+
+it("duplicates and removes cards while undo restores the image and text together", async () => {
+	const view = await setup();
+	fireEvent.click(screen.getByRole("button", { name: "Duplicate card" }));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(2);
+	expect((screen.getByLabelText("Numbered card data") as HTMLTextAreaElement).value).toContain(
+		"2\n",
+	);
+	fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+	fireEvent.click(screen.getByRole("button", { name: "Redo" }));
+	fireEvent.click(screen.getByRole("button", { name: "Remove card" }));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+});
+it("updates a custom template by name and removes it from saved choices", async () => {
+	render(<DataRecruit />);
+	fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "My ranking" } });
+	fireEvent.change(screen.getByLabelText("Font"), { target: { value: "Georgia" } });
+	fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+	fireEvent.change(screen.getByLabelText("Template name"), {
+		target: { value: "Renamed ranking" },
+	});
+	fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+	const list = JSON.parse(localStorage.getItem("data-recruit-templates")!);
+	expect(list).toHaveLength(1);
+	expect(list[0]).toMatchObject({ name: "Renamed ranking", font: "Georgia" });
+	fireEvent.click(screen.getByRole("button", { name: "Delete saved template" }));
+	expect(JSON.parse(localStorage.getItem("data-recruit-templates")!)).toHaveLength(0);
+});

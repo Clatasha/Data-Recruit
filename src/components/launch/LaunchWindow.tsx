@@ -1196,9 +1196,9 @@ export function LaunchWindow() {
 					>
 						<div className={styles.dockHeader}>
 							<div className={styles.dockBrand}>
-								<img src="./reaction-station.svg" alt="" />
+								<img src="./data-recruit.svg" alt="" />
 								<span>
-									Reaction Station<small>{t("reaction.creatorStudio")}</small>
+									Data Recruit<small>{t("reaction.creatorStudio")}</small>
 								</span>
 							</div>
 							<div
@@ -1292,7 +1292,7 @@ export function LaunchWindow() {
 							{/* System audio / mic / camera / cursor — each its own standalone
 					    transparent icon button (no shared group pill), matching the
 					    design exactly: rest color is muted gray, active/enabled color
-					    uses the Reaction Station accent. */}
+					    uses the Data Recruit accent. */}
 							<HudSystemAudioButton
 								enabled={systemAudioEnabled && (!recording || !audioMuted.system)}
 								locked={saving || (recording && (!liveAudioAvailable || !systemAudioEnabled))}

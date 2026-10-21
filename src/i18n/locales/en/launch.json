@@ -2,7 +2,7 @@
 	"tooltips": {
 		"hideHUD": "Hide recording bar",
 		"hideHUDTip": "Hide the recording bar. Show it again from the tray icon.",
-		"closeApp": "Quit Reaction Station",
+		"closeApp": "Quit Data Recruit",
 		"restartRecording": "Delete this recording and start a new one",
 		"cancelRecording": "Stop and delete this recording",
 		"pauseRecording": "Pause recording",
@@ -62,8 +62,8 @@
 		"screens": "Screens ({{count}})",
 		"windows": "Windows ({{count}})",
 		"emptyTitle": "No screens or windows found",
-		"emptyDescription": "If you just granted screen recording permission, reload this picker. On macOS you may need to reopen Reaction Station.",
-		"loadFailedDescription": "Reaction Station couldn't load your screens and windows. Reload this picker and try again.",
+		"emptyDescription": "If you just granted screen recording permission, reload this picker. On macOS you may need to reopen Data Recruit.",
+		"loadFailedDescription": "Data Recruit couldn't load your screens and windows. Reload this picker and try again.",
 		"defaultSourceName": "Screen"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "Language: {{language}}",
 	"systemLanguagePrompt": {
 		"title": "Use your system language?",
-		"description": "We detected {{language}} as your system language. Do you want to switch Reaction Station to {{language}}?",
+		"description": "We detected {{language}} as your system language. Do you want to switch Data Recruit to {{language}}?",
 		"switch": "Switch to {{language}}",
 		"keepDefault": "Keep current language"
 	},
 	"softwareEncoderFallback": {
 		"title": "Switched to a backup encoder",
-		"description": "Your graphics card's encoder didn't start, so Reaction Station switched to a backup. Your recording is fine, though your computer may work a little harder.",
+		"description": "Your graphics card's encoder didn't start, so Data Recruit switched to a backup. Your recording is fine, though your computer may work a little harder.",
 		"dismiss": "Got it",
 		"dontShowAgain": "Don't show again"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "Checking…"
 	},
 	"permissions": {
-		"title": "Reaction Station needs a few permissions",
+		"title": "Data Recruit needs a few permissions",
 		"subtitle": "macOS asks you to grant each one once. You can change them at any time in System Settings.",
 		"level": {
 			"required": "Required",
@@ -137,17 +137,17 @@
 			"continue": "Continue",
 			"allow": "Allow",
 			"openSettings": "Open Settings",
-			"restart": "Restart Reaction Station",
+			"restart": "Restart Data Recruit",
 			"start": "Get started"
 		},
 		"help": {
-			"screenPrompt": "macOS will then ask you to turn on Reaction Station in System Settings.",
-			"screenSettings": "In System Settings, turn on Reaction Station. If macOS offers to quit and reopen it, accept: this window will come back.",
-			"screenNotListed": "Reaction Station isn't in the list? Click +, then choose Reaction Station in Applications.",
-			"screenRestart": "Allowed. Reaction Station needs to restart before it can use it.",
-			"screenRecurring": "On your first recording, macOS will ask whether Reaction Station may access your screen directly, without the system picker. Click Allow. macOS asks again from time to time; that's expected.",
-			"systemAudioPrompt": "macOS will ask you to allow Reaction Station to record the sound your Mac plays.",
-			"systemAudioRequested": "If you said no, turn on Reaction Station under “System Audio Recording Only” in System Settings."
+			"screenPrompt": "macOS will then ask you to turn on Data Recruit in System Settings.",
+			"screenSettings": "In System Settings, turn on Data Recruit. If macOS offers to quit and reopen it, accept: this window will come back.",
+			"screenNotListed": "Data Recruit isn't in the list? Click +, then choose Data Recruit in Applications.",
+			"screenRestart": "Allowed. Data Recruit needs to restart before it can use it.",
+			"screenRecurring": "On your first recording, macOS will ask whether Data Recruit may access your screen directly, without the system picker. Click Allow. macOS asks again from time to time; that's expected.",
+			"systemAudioPrompt": "macOS will ask you to allow Data Recruit to record the sound your Mac plays.",
+			"systemAudioRequested": "If you said no, turn on Data Recruit under “System Audio Recording Only” in System Settings."
 		},
 		"footer": {
 			"screenRequired": "Screen recording is needed to record.",

@@ -193,7 +193,7 @@ function toolsFor(document: AxcutDocument) {
 describe("the tool surface handed to the model", () => {
 	// No count in the title: the number moved twice without either copy of the
 	// roster following, and a title is the one place a stale number cannot fail.
-	it("is exactly the tools Reaction Station declares, in that order", () => {
+	it("is exactly the tools Data Recruit declares, in that order", () => {
 		const { tools } = toolsFor(fixtureDocument());
 		expect(tools.map((t) => t.name)).toEqual(OPENSCREEN_TOOLS);
 	});

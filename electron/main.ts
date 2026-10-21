@@ -164,7 +164,7 @@ const isMac = process.platform === "darwin";
 const trayIconSize = isMac ? 16 : 24;
 
 // Tray Icons
-const defaultTrayIcon = getTrayIcon("openscreen.png", trayIconSize);
+const defaultTrayIcon = getTrayIcon("data-recruit.png", trayIconSize);
 const recordingTrayIcon = getTrayIcon("rec-button.png", trayIconSize);
 
 function createWindow() {
@@ -537,6 +537,7 @@ function configureAboutPanel() {
 	if (!usesNativeAboutPanel(process.platform)) return;
 	const facts = aboutFacts();
 	app.setAboutPanelOptions({
+		iconPath: path.join(process.env.VITE_PUBLIC || RENDERER_DIST, "data-recruit.png"),
 		applicationName: PRODUCT_NAME,
 		applicationVersion: facts.version,
 		// Rendered in parentheses after the version, where a build number would go. The install

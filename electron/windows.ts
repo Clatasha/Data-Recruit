@@ -519,6 +519,7 @@ export function createEditorWindow(query: Record<string, string> = {}): BrowserW
 		alwaysOnTop: false,
 		skipTaskbar: false,
 		title: "Data Recruit",
+		icon: path.join(process.env.VITE_PUBLIC || RENDERER_DIST, "data-recruit.png"),
 		backgroundColor: "#09090b",
 		show: false, // shown via ready-to-show to avoid white flash on first load
 		webPreferences: {
@@ -703,6 +704,7 @@ export function createPermissionsWindow(): BrowserWindow {
 		maximizable: false,
 		fullscreenable: false,
 		title: "Data Recruit",
+		icon: path.join(process.env.VITE_PUBLIC || RENDERER_DIST, "data-recruit.png"),
 		backgroundColor: "#0b0c0f",
 		show: false,
 		webPreferences: {

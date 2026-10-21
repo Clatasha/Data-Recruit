@@ -167,7 +167,7 @@ export default function App() {
 				return (
 					<div>
 						<div className="w-full h-full bg-background text-foreground">
-							<h1>Reaction Station</h1>
+							<h1>Data Recruit</h1>
 						</div>
 					</div>
 				);

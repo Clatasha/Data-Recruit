@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import logoMark from "@/assets/data-recruit-mark.svg";
 import { attachClipAudio } from "@/lib/ai-edition/document/editorTracks";
 import { createId } from "@/lib/ai-edition/document/ids";
 import { withClipsChanged } from "@/lib/ai-edition/document/timeline";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { type Bookend, loadBookend, loadImage, pauseBookends, serializeBookend } from "./bookends";
 import { encodeScroll } from "./export";
+import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
 import {
 	type CardTemplate,
 	FACTS_TEXT,
@@ -18,6 +20,8 @@ import {
 	TEMPLATES,
 	validateCards,
 } from "./model";
+import { useProjectHistory } from "./projectHistory";
+import { recovery } from "./recovery";
 import { type CardImage, drawImageFit, drawScroll, renderCard } from "./render";
 import "./data-recruit.css";
 
@@ -32,6 +36,15 @@ const templateSchema = z.object({
 	name: z.string().min(1),
 	titleColor: z.string().regex(/^#[0-9a-f]{6}$/i),
 	textColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+	font: z.enum(["Arial", "Verdana", "Georgia", "Impact"]).optional(),
+	textScale: z.number().min(0.5).max(1.5).optional(),
+	outline: z.number().min(0).max(0.15).optional(),
+	outlineColor: z
+		.string()
+		.regex(/^#[0-9a-f]{6}$/i)
+		.optional(),
+	spacing: z.number().min(0.005).max(0.06).optional(),
+	imageHeight: z.number().min(0.3).max(0.65).optional(),
 	rows: z.array(rowSchema).min(1).max(6),
 });
 const imageSchema = z.object({
@@ -46,12 +59,22 @@ const bookendSchema = z
 		name: z.string(),
 		url: z.string().regex(/^data:(?:image|video)\//),
 		kind: z.enum(["image", "video"]).default("image"),
+		start: z.number().min(0).max(86400).default(0),
+		volume: z.number().min(0).max(1).default(1),
 		muted: z.boolean().default(false),
 		duration: z.number().min(0.1).max(600),
 	})
 	.nullable();
 const recipeSchema = z.object({
 	version: z.literal(1),
+	order: z.array(z.number().int().positive()).default([]),
+	exportOptions: z
+		.object({
+			resolution: z.union([z.literal(720), z.literal(1080), z.literal(1440)]),
+			fps: z.union([z.literal(24), z.literal(30), z.literal(60)]),
+			quality: z.enum(["standard", "high"]),
+		})
+		.default(DEFAULT_EXPORT),
 	text: z.string(),
 	template: templateSchema,
 	settings: z.object({
@@ -83,8 +106,72 @@ const clock = (time: number) =>
 	`${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, "0")}`;
 
 export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => void }) {
-	const [text, setText] = useState(SAMPLE_TEXT);
-	const [template, setTemplate] = useState<CardTemplate>(structuredClone(TEMPLATES[0]));
+	const history = useProjectHistory({
+		text: SAMPLE_TEXT,
+		template: structuredClone(TEMPLATES[0]) as CardTemplate,
+		images: [] as CardImage[],
+		settings: {
+			format: "landscape",
+			direction: "left",
+			secondsPerCard: 4,
+			fit: "fill",
+		} as ScrollSettings,
+		intro: null as Bookend | null,
+		outro: null as Bookend | null,
+		order: [] as number[],
+		exportOptions: DEFAULT_EXPORT,
+	});
+	const { text, template, images, settings, intro, outro, order, exportOptions } = history.present;
+	const setter =
+		<K extends keyof typeof history.present>(key: K) =>
+		(value: SetStateAction<(typeof history.present)[K]>) =>
+			history.update(key, value);
+	const setText = setter("text"),
+		setTemplate = setter("template"),
+		setImages = setter("images"),
+		setSettings = setter("settings"),
+		setIntro = setter("intro"),
+		setOutro = setter("outro"),
+		setOrder = setter("order"),
+		setExportOptions = setter("exportOptions");
+	const [draft, setDraft] = useState<string | null>(null);
+	const [recoveryReady, setRecoveryReady] = useState(false),
+		[recoveryStatus, setRecoveryStatus] = useState("");
+	const [savedState, setSavedState] = useState(history.present);
+	const dirty = savedState !== history.present;
+	const dragged = useRef<number | null>(null);
+	useEffect(() => {
+		void recovery()
+			.then(setDraft)
+			.catch(() =>
+				setRecoveryStatus("Recovery is unavailable in this session. Save your project file."),
+			)
+			.finally(() => setRecoveryReady(true));
+	}, []);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Serialize only project edits; transport state does not change the recipe.
+	useEffect(() => {
+		if (!recoveryReady || draft || !dirty) return;
+		setRecoveryStatus("Saving recovery copy…");
+		const timer = setTimeout(() => {
+			void recovery(JSON.stringify(recipe()))
+				.then(() => setRecoveryStatus("Recovery copy saved"))
+				.catch(() => setRecoveryStatus("Recovery could not be saved. Save your project file."));
+		}, 1000);
+		return () => clearTimeout(timer);
+	}, [history.present, recoveryReady, draft, dirty]);
+	useEffect(() => {
+		void window.electronAPI?.dataRecruitSetDirty?.(dirty);
+	}, [dirty]);
+	useEffect(() => {
+		const warn = (event: BeforeUnloadEvent) => {
+			if (dirty && !window.electronAPI?.dataRecruitSetDirty) {
+				event.preventDefault();
+				event.returnValue = "";
+			}
+		};
+		window.addEventListener("beforeunload", warn);
+		return () => window.removeEventListener("beforeunload", warn);
+	}, [dirty]);
 	const [custom, setCustom] = useState<CardTemplate[]>(() => {
 		try {
 			return z
@@ -94,15 +181,8 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			return [];
 		}
 	});
-	const [images, setImages] = useState<CardImage[]>([]);
-	const [settings, setSettings] = useState<ScrollSettings>({
-		format: "landscape",
-		direction: "left",
-		secondsPerCard: 4,
-		fit: "fill",
-	});
-	const [intro, setIntro] = useState<Bookend | null>(null),
-		[outro, setOutro] = useState<Bookend | null>(null);
+	const templateChoices = [...TEMPLATES, ...custom];
+	if (!templateChoices.some((item) => item.id === template.id)) templateChoices.push(template);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [time, setTime] = useState(0),
 		[playing, setPlaying] = useState(false);
@@ -116,11 +196,22 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		abortRef = useRef<AbortController | null>(null);
 	const parsed = useMemo(() => {
 		try {
-			return { cards: parseCards(text), error: "" };
+			const cards = parseCards(text);
+			return {
+				cards: [...cards].sort((a, b) => {
+					const ai = order.indexOf(a.id),
+						bi = order.indexOf(b.id);
+					return (
+						(ai < 0 ? order.length + cards.indexOf(a) : ai) -
+						(bi < 0 ? order.length + cards.indexOf(b) : bi)
+					);
+				}),
+				error: "",
+			};
 		} catch (error) {
 			return { cards: [], error: String(error instanceof Error ? error.message : error) };
 		}
-	}, [text]);
+	}, [text, order]);
 	const problems = useMemo(
 		() =>
 			parsed.error
@@ -152,7 +243,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 	useEffect(() => {
 		setPlaying(false);
 		setTime(0);
-	}, [text, images, template, settings, intro, outro]);
+	}, [text, images, template, settings, intro, outro, order]);
 	useEffect(() => {
 		const ctx = canvasRef.current?.getContext("2d");
 		if (!ctx) return;
@@ -166,13 +257,17 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		for (const item of [intro, outro]) {
 			if (item?.kind !== "video") continue;
 			if (item === active) {
-				const target = Math.max(0, Math.min(item.sourceDuration - 0.001, time - offset));
+				const target = Math.max(
+					0,
+					Math.min(item.sourceDuration - 0.001, time - offset + (item.start ?? 0)),
+				);
 				if (
 					!item.media.seeking &&
 					Math.abs(item.media.currentTime - target) > (playing ? 0.2 : 0.015)
 				)
 					item.media.currentTime = target;
 				item.media.muted = item.muted;
+				item.media.volume = item.volume ?? 1;
 				if (playing && !busy)
 					void item.media.play().catch(() => {
 						setPlaying(false);
@@ -243,6 +338,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				const url = await readUrl(file);
 				loaded.push({ id, name: file.name, url, x: 0.5, y: 0.5, image: await loadImage(url) });
 			}
+			history.checkpoint();
 			setImages((existing) =>
 				[
 					...existing.filter((image) => !loaded.some((added) => added.id === image.id)),
@@ -260,6 +356,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		try {
 			const url = await readUrl(file),
 				image = await loadImage(url);
+			history.checkpoint();
 			setImages((existing) =>
 				[
 					...existing.filter((value) => value.id !== id),
@@ -282,6 +379,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					: "image";
 			const value = await loadBookend(file.name, await readUrl(file), mediaKind);
 			if (value.duration > 600) value.duration = 600;
+			history.checkpoint();
 			(kind === "intro" ? setIntro : setOutro)(value);
 			setMessage(
 				`${kind === "intro" ? "Intro" : "Outro"} ${mediaKind} added. ${mediaKind === "video" ? "Original audio is included unless muted." : ""}`,
@@ -293,6 +391,8 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 	function recipe() {
 		return {
 			version: 1,
+			order,
+			exportOptions,
 			text,
 			template,
 			settings,
@@ -301,27 +401,45 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			outro: serializeBookend(outro),
 		};
 	}
-	async function openRecipe(file: File | undefined) {
-		if (!file) return;
+	async function openRecipe(file: File | undefined, source?: string) {
+		if (!file && !source) return;
 		try {
-			const value = recipeSchema.parse(JSON.parse(await file.text()));
+			const value = recipeSchema.parse(JSON.parse(source ?? (await file!.text())));
 			if (new Set(value.images.map((image) => image.id)).size !== value.images.length)
 				throw new Error("Project contains duplicate image numbers.");
 			const loaded = await Promise.all(
 				value.images.map(async (image) => ({ ...image, image: await loadImage(image.url) })),
 			);
 			const restoreBookend = async (item: typeof value.intro) =>
-				item ? loadBookend(item.name, item.url, item.kind, item.duration, item.muted) : null;
+				item
+					? loadBookend(
+							item.name,
+							item.url,
+							item.kind,
+							item.duration,
+							item.muted,
+							item.start,
+							item.volume,
+						)
+					: null;
 			const [first, last] = await Promise.all([
 				restoreBookend(value.intro),
 				restoreBookend(value.outro),
 			]);
-			setText(value.text);
-			setTemplate(value.template);
-			setSettings(value.settings);
-			setImages(loaded);
-			setIntro(first);
-			setOutro(last);
+			const next = history.replace({
+				...history.present,
+				order: value.order,
+				exportOptions: value.exportOptions,
+				text: value.text,
+				template: value.template,
+				settings: value.settings,
+				images: loaded,
+				intro: first,
+				outro: last,
+			});
+			if (!source) setSavedState(next);
+			setSelected(loaded[0]?.id ?? null);
+			setDraft(null);
 			setMessage("Project opened. Click Build Timeline when ready.");
 		} catch (error) {
 			fail(error);
@@ -361,6 +479,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				outro,
 				setProgress,
 				controller.signal,
+				exportOptions,
 			);
 			if (controller.signal.aborted) throw new Error("Build cancelled.");
 			if (editor) {
@@ -439,18 +558,50 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				.join("\n\n"),
 		);
 	}
+	function cardsText(cards: typeof parsed.cards) {
+		return cards
+			.map(
+				(card) =>
+					`${card.id}\n${Object.entries(card.fields)
+						.map(([key, value]) => `${key}: ${value}`)
+						.join("\n")}`,
+			)
+			.join("\n\n");
+	}
+	function moveCard(from: number | null, target: number | undefined) {
+		if (from === null || target === undefined || from === target) return;
+		history.checkpoint();
+		const ids = parsed.cards.map((c) => c.id).filter((id) => id !== from);
+		ids.splice(ids.indexOf(target), 0, from);
+		setOrder(ids);
+	}
+	function duplicateCard() {
+		history.checkpoint();
+		if (!selectedCard || parsed.cards.length >= 100) return;
+		const id = Math.max(0, ...parsed.cards.map((c) => c.id), ...images.map((i) => i.id)) + 1;
+		const cards = [...parsed.cards];
+		cards.splice(cards.indexOf(selectedCard) + 1, 0, { id, fields: { ...selectedCard.fields } });
+		setText(cardsText(cards));
+		setOrder(cards.map((c) => c.id));
+		if (chosen) setImages([...images, { ...chosen, id }]);
+		setSelected(id);
+	}
 	return (
 		<div className="dr-app">
 			<header className="dr-header">
 				<div className="dr-brand">
-					<span className="dr-logo">
-						D<span>R</span>
-					</span>
+					<img className="dr-logo" src={logoMark} alt="Data Recruit" />
 					<div>
 						Data Recruit<small>SCROLLING VIDEO STUDIO</small>
 					</div>
 				</div>
 				<nav>
+					<button type="button" disabled={!history.canUndo || busy} onClick={history.undo}>
+						Undo
+					</button>
+					<button type="button" disabled={!history.canRedo || busy} onClick={history.redo}>
+						Redo
+					</button>
 					<label className="dr-button">
 						Open project
 						<input
@@ -465,12 +616,18 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					</label>
 					<button
 						type="button"
-						onClick={() =>
+						onClick={() => {
 							download(
 								new Blob([JSON.stringify(recipe())], { type: "application/json" }),
 								"Data-Recruit.project.json",
-							)
-						}
+							);
+							setSavedState(history.present);
+							void recovery(JSON.stringify(recipe()))
+								.then(() => setRecoveryStatus("Recovery copy saved"))
+								.catch(() =>
+									setRecoveryStatus("Recovery could not be saved. Keep your project file."),
+								);
+						}}
 					>
 						Save project
 					</button>
@@ -484,6 +641,28 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					</button>
 				</nav>
 			</header>
+			{draft && (
+				<div className="dr-recovery">
+					A recovery copy is available.{" "}
+					<button
+						type="button"
+						onClick={() => {
+							void openRecipe(undefined, draft);
+						}}
+					>
+						Restore project
+					</button>{" "}
+					<button
+						type="button"
+						onClick={() => {
+							setDraft(null);
+							void recovery(null).catch(fail);
+						}}
+					>
+						Discard recovery
+					</button>
+				</div>
+			)}
 			<div className="dr-workspace">
 				<aside className="dr-sidebar">
 					<div className="dr-section-title">
@@ -507,18 +686,34 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							/>
 						</label>
 						<div className="dr-images">
-							{images.map((image) => (
-								<button
-									type="button"
-									key={image.id}
-									className={selected === image.id ? "selected" : ""}
-									title={image.name}
-									onClick={() => setSelected(image.id)}
-								>
-									<img src={image.url} alt={image.name} />
-									<span>{image.id}</span>
-								</button>
-							))}
+							{[...images]
+								.sort(
+									(a, b) =>
+										parsed.cards.findIndex((c) => c.id === a.id) -
+										parsed.cards.findIndex((c) => c.id === b.id),
+								)
+								.map((image) => (
+									<button
+										type="button"
+										key={image.id}
+										className={selected === image.id ? "selected" : ""}
+										title={image.name}
+										draggable
+										onDragStart={() => {
+											dragged.current = image.id;
+										}}
+										onDragOver={(event) => event.preventDefault()}
+										onDrop={(event) => {
+											event.preventDefault();
+											moveCard(dragged.current, image.id);
+											dragged.current = null;
+										}}
+										onClick={() => setSelected(image.id)}
+									>
+										<img src={image.url} alt={image.name} />
+										<span>{image.id}</span>
+									</button>
+								))}
 						</div>
 					</section>
 					<section>
@@ -529,13 +724,11 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							aria-label="Template"
 							value={template.id}
 							onChange={(event) => {
-								const next = [...TEMPLATES, ...custom].find(
-									(item) => item.id === event.target.value,
-								);
+								const next = templateChoices.find((item) => item.id === event.target.value);
 								if (next) setTemplate(structuredClone(next));
 							}}
 						>
-							{[...TEMPLATES, ...custom].map((item) => (
+							{templateChoices.map((item) => (
 								<option key={item.id} value={item.id}>
 									{item.name}
 								</option>
@@ -559,6 +752,106 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						</div>
 						<details>
 							<summary>Customize template</summary>
+							<label>
+								Font
+								<select
+									aria-label="Font"
+									value={template.font ?? "Arial"}
+									onChange={(event) =>
+										setTemplate({ ...template, font: event.target.value as CardTemplate["font"] })
+									}
+								>
+									{["Arial", "Verdana", "Georgia", "Impact"].map((font) => (
+										<option key={font}>{font}</option>
+									))}
+								</select>
+							</label>
+							{[
+								{
+									key: "textScale",
+									label: "Text size",
+									min: 0.5,
+									max: 1.5,
+									step: 0.05,
+									fallback: 1,
+								},
+								{
+									key: "outline",
+									label: "Text outline",
+									min: 0,
+									max: 0.15,
+									step: 0.005,
+									fallback: 0.065,
+								},
+								{
+									key: "spacing",
+									label: "Card spacing",
+									min: 0.005,
+									max: 0.06,
+									step: 0.005,
+									fallback: 0.028,
+								},
+								{
+									key: "imageHeight",
+									label: "Image height",
+									min: 0.3,
+									max: 0.65,
+									step: 0.01,
+									fallback: 0.52,
+								},
+							].map((control) => (
+								<label key={control.key}>
+									{control.label}
+									<input
+										type="range"
+										min={control.min}
+										max={control.max}
+										step={control.step}
+										value={
+											(template[control.key as keyof CardTemplate] as number | undefined) ??
+											control.fallback
+										}
+										onChange={(event) =>
+											setTemplate({ ...template, [control.key]: Number(event.target.value) })
+										}
+									/>
+								</label>
+							))}
+							<label>
+								Text color
+								<input
+									type="color"
+									value={template.textColor}
+									onChange={(event) => setTemplate({ ...template, textColor: event.target.value })}
+								/>
+							</label>
+							<label>
+								Outline color
+								<input
+									type="color"
+									value={template.outlineColor ?? "#131722"}
+									onChange={(event) =>
+										setTemplate({ ...template, outlineColor: event.target.value })
+									}
+								/>
+							</label>
+							{template.id.startsWith("custom-") && (
+								<button
+									type="button"
+									onClick={() => {
+										const list = custom.filter((item) => item.id !== template.id);
+										try {
+											localStorage.setItem("data-recruit-templates", JSON.stringify(list));
+											setCustom(list);
+											setTemplate(structuredClone(TEMPLATES[0]));
+										} catch (error) {
+											fail(error);
+										}
+									}}
+								>
+									Delete saved template
+								</button>
+							)}
 							<label>
 								Template name
 								<input
@@ -608,6 +901,19 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 											})
 										}
 									/>
+									<input
+										type="color"
+										aria-label={`${row.label} value color`}
+										value={row.valueColor}
+										onChange={(event) =>
+											setTemplate({
+												...template,
+												rows: template.rows.map((item, at) =>
+													at === index ? { ...item, valueColor: event.target.value } : item,
+												),
+											})
+										}
+									/>
 									<button
 										type="button"
 										disabled={template.rows.length === 1}
@@ -649,11 +955,13 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 										try {
 											const value = templateSchema.parse({
 												...template,
-												id: `custom-${Date.now()}`,
+												id: template.id.startsWith("custom-")
+													? template.id
+													: `custom-${Date.now()}`,
 											});
 											if (new Set(value.rows.map((row) => row.key)).size !== value.rows.length)
 												throw new Error("Each template field must have a unique name.");
-											const list = [...custom, value];
+											const list = [...custom.filter((item) => item.id !== value.id), value];
 											localStorage.setItem("data-recruit-templates", JSON.stringify(list));
 											setCustom(list);
 											setTemplate(value);
@@ -723,7 +1031,8 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							<h1>{template.name}</h1>
 						</div>
 						<span className="dr-chip">
-							{dims.width} × {dims.height} · 30 FPS
+							{exportGeometry(settings.format, exportOptions).width} ×{" "}
+							{exportGeometry(settings.format, exportOptions).height} · {exportOptions.fps} FPS
 						</span>
 					</div>
 					<div className={`dr-stage ${settings.format}`}>
@@ -817,6 +1126,10 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 					</div>
 					<div className="dr-status" role="status">
 						{message}
+						<small className="dr-recovery-status">
+							{dirty ? "Unsaved project · " : ""}
+							{recoveryStatus}
+						</small>
 					</div>
 					{busy && (
 						<div className="dr-progress">
@@ -877,6 +1190,49 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						<h2>Selected card {selected ? `#${selected}` : ""}</h2>
 						{selectedCard ? (
 							<div className="dr-fields">
+								<div className="dr-card-actions">
+									<button
+										type="button"
+										disabled={parsed.cards.findIndex((c) => c.id === selected) === 0}
+										onClick={() => {
+											const at = parsed.cards.findIndex((c) => c.id === selected);
+											moveCard(selected, parsed.cards[at - 1]?.id);
+										}}
+									>
+										← Earlier
+									</button>
+									<button
+										type="button"
+										disabled={parsed.cards.at(-1)?.id === selected}
+										onClick={() => {
+											const ids = parsed.cards.map((c) => c.id),
+												at = ids.indexOf(selected!);
+											[ids[at], ids[at + 1]] = [ids[at + 1], ids[at]];
+											setOrder(ids);
+										}}
+									>
+										Later →
+									</button>
+									<button
+										type="button"
+										disabled={parsed.cards.length >= 100}
+										onClick={duplicateCard}
+									>
+										Duplicate card
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											history.checkpoint();
+											setText(cardsText(parsed.cards.filter((c) => c.id !== selected)));
+											setImages(images.filter((i) => i.id !== selected));
+											setOrder(order.filter((id) => id !== selected));
+											setSelected(null);
+										}}
+									>
+										Remove card
+									</button>
+								</div>
 								<label className="dr-button">
 									{chosen ? "Replace image" : "Add image for this card"}
 									<input
@@ -965,6 +1321,64 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 										/>
 									</label>
 									{item?.kind === "video" && (
+										<>
+											<label>
+												Trim {kind} start
+												<input
+													type="number"
+													min="0"
+													step="0.1"
+													max={Math.max(0, item.sourceDuration - 0.1)}
+													value={item.start ?? 0}
+													onChange={(event) => {
+														const start = Math.max(
+															0,
+															Math.min(item.sourceDuration - 0.1, Number(event.target.value) || 0),
+														);
+														setter({
+															...item,
+															start,
+															duration: Math.min(item.duration, item.sourceDuration - start),
+														});
+													}}
+												/>
+											</label>
+											<label>
+												Trim {kind} end
+												<input
+													type="number"
+													min={(item.start ?? 0) + 0.1}
+													max={item.sourceDuration}
+													step="0.1"
+													value={Number(((item.start ?? 0) + item.duration).toFixed(3))}
+													onChange={(event) =>
+														setter({
+															...item,
+															duration: Math.max(
+																0.1,
+																Math.min(item.sourceDuration, Number(event.target.value) || 0) -
+																	(item.start ?? 0),
+															),
+														})
+													}
+												/>
+											</label>
+											<label>
+												{kind} volume
+												<input
+													type="range"
+													min="0"
+													max="1"
+													step="0.05"
+													value={item.volume ?? 1}
+													onChange={(event) =>
+														setter({ ...item, volume: Number(event.target.value) })
+													}
+												/>
+											</label>
+										</>
+									)}
+									{item?.kind === "video" && (
 										<label className="dr-mute">
 											<input
 												type="checkbox"
@@ -983,15 +1397,21 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 													type="number"
 													min="0.1"
 													step="0.1"
-													max={item.kind === "video" ? Math.min(600, item.sourceDuration) : 30}
-													value={item.duration}
+													max={
+														item.kind === "video"
+															? Math.min(600, item.sourceDuration - (item.start ?? 0))
+															: 30
+													}
+													value={Number(item.duration.toFixed(3))}
 													onChange={(event) =>
 														setter({
 															...item,
 															duration: Math.max(
 																0.1,
 																Math.min(
-																	item.kind === "video" ? Math.min(600, item.sourceDuration) : 30,
+																	item.kind === "video"
+																		? Math.min(600, item.sourceDuration - (item.start ?? 0))
+																		: 30,
 																	Number(event.target.value) || 0.1,
 																),
 															),
@@ -1010,6 +1430,64 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 						<small>
 							Choose an image or video. Video clips keep their audio and can be shortened here.
 						</small>
+					</section>
+					<section>
+						<h2>Export settings</h2>
+						<small>MP4 · H.264 video</small>
+						<label>
+							Resolution
+							<select
+								aria-label="Resolution"
+								value={exportOptions.resolution}
+								onChange={(event) =>
+									setExportOptions({
+										...exportOptions,
+										resolution: Number(event.target.value) as ExportSettings["resolution"],
+									})
+								}
+							>
+								{[720, 1080, 1440].map((size) => (
+									<option key={size} value={size}>
+										{size}p
+									</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Frame rate
+							<select
+								aria-label="Frame rate"
+								value={exportOptions.fps}
+								onChange={(event) =>
+									setExportOptions({
+										...exportOptions,
+										fps: Number(event.target.value) as ExportSettings["fps"],
+									})
+								}
+							>
+								{[24, 30, 60].map((fps) => (
+									<option key={fps} value={fps}>
+										{fps} FPS
+									</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Quality
+							<select
+								aria-label="Quality"
+								value={exportOptions.quality}
+								onChange={(event) =>
+									setExportOptions({
+										...exportOptions,
+										quality: event.target.value as ExportSettings["quality"],
+									})
+								}
+							>
+								<option value="standard">Standard · smaller file</option>
+								<option value="high">High</option>
+							</select>
+						</label>
 					</section>
 					<div className="dr-build">
 						{problems.length > 0 && (

@@ -50,7 +50,7 @@
 		"microphoneDefaulted": "Vybraný mikrofon se nepodařilo identifikovat. Nahrávání bude pokračovat s výchozím vstupem.",
 		"microphoneUnavailable": "Tato verze macOS neumí nahrávat mikrofon. Nahrávání probíhá bez něj.",
 		"permissionDenied": "Oprávnění k nahrávání odepřeno. Povolte prosím záznam obrazovky.",
-		"accessibilityAllowAndRetry": "Povolte přístup k usnadnění pro Reaction Station a poté znovu stiskněte tlačítko nahrávání pro zahájení odpočítávání.",
+		"accessibilityAllowAndRetry": "Povolte přístup k usnadnění pro Data Recruit a poté znovu stiskněte tlačítko nahrávání pro zahájení odpočítávání.",
 		"cursorAccessibilityUnavailable": "Přístup k usnadnění není povolen. Nahrávání bude pokračovat, ale efekty kurzoru mohou být omezené. Pro plné efekty kurzoru jej povolte v Nastavení systému.",
 		"selectSource": "Vyberte prosím zdroj pro nahrávání"
 	},
@@ -172,7 +172,7 @@
 		"detectedLanguage": "Zjištěný jazyk: {{language}}",
 		"noAudioTrack": "Žádná zvuková stopa",
 		"noAudioTrackHint": "Toto médium nemá zvukovou stopu, takže není co přepisovat.",
-		"mediaUnreadableHint": "Zvuk tohoto média se nepodařilo přečíst. Ověřte, že Reaction Station má přístup ke složce, ve které je uloženo, a pak jej vygenerujte znovu.",
+		"mediaUnreadableHint": "Zvuk tohoto média se nepodařilo přečíst. Ověřte, že Data Recruit má přístup ke složce, ve které je uloženo, a pak jej vygenerujte znovu.",
 		"noSpeechDetected": "Žádná řeč nezjištěna"
 	},
 	"exportDialog": {
@@ -203,7 +203,7 @@
 		"exportedVideo": "Video exportováno",
 		"exportedVideoOf": "z videa exportováno za",
 		"showInFolder": "Zobrazit ve složce",
-		"starPrompt": "Reaction Station je zdarma a pod licencí MIT. Hvězda na GitHubu pomůže ostatním ho najít.",
+		"starPrompt": "Data Recruit je zdarma a pod licencí MIT. Hvězda na GitHubu pomůže ostatním ho najít.",
 		"starPromptNoThanks": "Ne, děkuji",
 		"rateOnStore": "Ohodnotit v Microsoft Store",
 		"exportFailed": "Export selhal",
@@ -274,7 +274,7 @@
 			"disclaimer": "Přepis vašeho videa bude odeslán vámi zvolenému poskytovateli. Nic není sdíleno, dokud ho nepřipojíte."
 		},
 		"authorUser": "Vy",
-		"authorAssistant": "Reaction Station",
+		"authorAssistant": "Data Recruit",
 		"rewindToMessage": "Přetočit na tuto zprávu",
 		"rewindTip": "Přetočit na tuto zprávu. Pozdější změny se vrátí zpět.",
 		"copyMessage": "Kopírovat zprávu",
@@ -429,7 +429,7 @@
 	},
 	"mcpServer": {
 		"title": "MCP server",
-		"description": "Umožněte MCP klientům, které sami spouštíte, například Claude Code nebo Codex, používat nástroje pro úpravy s AI na projektu otevřeném v editoru. Přihlašují se vlastními účty; Reaction Station je nikdy nevidí.",
+		"description": "Umožněte MCP klientům, které sami spouštíte, například Claude Code nebo Codex, používat nástroje pro úpravy s AI na projektu otevřeném v editoru. Přihlašují se vlastními účty; Data Recruit je nikdy nevidí.",
 		"enableLabel": "Server",
 		"enable": "Zapnout MCP server",
 		"editsLabel": "Úpravy projektu",

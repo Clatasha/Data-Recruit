@@ -80,13 +80,13 @@
 		"saveVideo": "Uložit exportované video",
 		"selectVideo": "Vybrat video soubor",
 		"selectAudio": "Vybrat zvukový soubor",
-		"saveProject": "Uložit projekt Reaction Station",
-		"openProject": "Otevřít projekt Reaction Station",
+		"saveProject": "Uložit projekt Data Recruit",
+		"openProject": "Otevřít projekt Data Recruit",
 		"gifImage": "GIF obrázek",
 		"mp4Video": "MP4 video",
 		"videoFiles": "Video soubory",
 		"audioFiles": "Zvukové soubory",
-		"openscreenProject": "Projekt Reaction Station",
+		"openscreenProject": "Projekt Data Recruit",
 		"allFiles": "Všechny soubory"
 	}
 }

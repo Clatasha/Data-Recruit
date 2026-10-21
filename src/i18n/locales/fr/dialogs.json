@@ -80,13 +80,13 @@
 		"saveVideo": "Enregistrer la vidéo exportée",
 		"selectVideo": "Sélectionner un fichier vidéo",
 		"selectAudio": "Sélectionner un fichier audio",
-		"saveProject": "Enregistrer le projet Reaction Station",
-		"openProject": "Ouvrir un projet Reaction Station",
+		"saveProject": "Enregistrer le projet Data Recruit",
+		"openProject": "Ouvrir un projet Data Recruit",
 		"gifImage": "Image GIF",
 		"mp4Video": "Vidéo MP4",
 		"videoFiles": "Fichiers vidéo",
 		"audioFiles": "Fichiers audio",
-		"openscreenProject": "Projet Reaction Station",
+		"openscreenProject": "Projet Data Recruit",
 		"allFiles": "Tous les fichiers"
 	}
 }

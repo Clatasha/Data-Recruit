@@ -62,8 +62,8 @@
 		"screens": "Obrazovky ({{count}})",
 		"windows": "Okna ({{count}})",
 		"emptyTitle": "Žádné obrazovky ani okna nenalezena",
-		"emptyDescription": "Pokud jste právě udělili oprávnění pro záznam obrazovky, znovu načtěte tento výběr. Na macOS může být nutné znovu otevřít Reaction Station.",
-		"loadFailedDescription": "Reaction Station nemohl načíst zdroje záznamu. Znovu načtěte tento výběr a zkuste to znovu.",
+		"emptyDescription": "Pokud jste právě udělili oprávnění pro záznam obrazovky, znovu načtěte tento výběr. Na macOS může být nutné znovu otevřít Data Recruit.",
+		"loadFailedDescription": "Data Recruit nemohl načíst zdroje záznamu. Znovu načtěte tento výběr a zkuste to znovu.",
 		"defaultSourceName": "Obrazovka"
 	},
 	"recording": {
@@ -77,13 +77,13 @@
 	"languageWithName": "Jazyk: {{language}}",
 	"systemLanguagePrompt": {
 		"title": "Použít jazyk systému?",
-		"description": "Detekovali jsme {{language}} jako jazyk vašeho systému. Chcete přepnout Reaction Station na {{language}}?",
+		"description": "Detekovali jsme {{language}} jako jazyk vašeho systému. Chcete přepnout Data Recruit na {{language}}?",
 		"switch": "Přepnout na {{language}}",
 		"keepDefault": "Ponechat aktuální jazyk"
 	},
 	"softwareEncoderFallback": {
 		"title": "Přepnuto na softwarové kódování",
-		"description": "Výchozí GPU enkodér se nepodařilo spustit, takže Reaction Station přepnul na softwarové kódování H.264. Nahrávání by mělo pokračovat normálně, ale využití CPU může být vyšší.",
+		"description": "Výchozí GPU enkodér se nepodařilo spustit, takže Data Recruit přepnul na softwarové kódování H.264. Nahrávání by mělo pokračovat normálně, ale využití CPU může být vyšší.",
 		"dismiss": "Rozumím",
 		"dontShowAgain": "Již nezobrazovat"
 	},
@@ -100,7 +100,7 @@
 		"checkingForUpdates": "Kontrola…"
 	},
 	"permissions": {
-		"title": "Reaction Station potřebuje několik oprávnění",
+		"title": "Data Recruit potřebuje několik oprávnění",
 		"subtitle": "macOS vás o každé požádá jen jednou. Kdykoli je můžete změnit v Nastavení systému.",
 		"level": {
 			"required": "Povinné",
@@ -137,17 +137,17 @@
 			"continue": "Pokračovat",
 			"allow": "Povolit",
 			"openSettings": "Otevřít Nastavení",
-			"restart": "Restartovat Reaction Station",
+			"restart": "Restartovat Data Recruit",
 			"start": "Začít"
 		},
 		"help": {
-			"screenPrompt": "macOS vás pak požádá, abyste Reaction Station zapnuli v Nastavení systému.",
-			"screenSettings": "V Nastavení systému zapněte Reaction Station. Pokud macOS nabídne aplikaci ukončit a znovu otevřít, přijměte: toto okno se vrátí.",
-			"screenNotListed": "Reaction Station v seznamu chybí? Klikněte na + a vyberte Reaction Station ve složce Aplikace.",
-			"screenRestart": "Povoleno. Reaction Station se musí restartovat, aby oprávnění mohl použít.",
-			"screenRecurring": "Při prvním nahrávání se vás macOS zeptá, zda smí Reaction Station přistupovat k obrazovce přímo, bez systémového výběru. Klikněte na Povolit. macOS se čas od času zeptá znovu, to je v pořádku.",
-			"systemAudioPrompt": "macOS se vás zeptá, zda smí Reaction Station nahrávat zvuk z vašeho Macu.",
-			"systemAudioRequested": "Pokud jste odmítli, zapněte Reaction Station v části „Jen záznam systémového zvuku“ v Nastavení systému."
+			"screenPrompt": "macOS vás pak požádá, abyste Data Recruit zapnuli v Nastavení systému.",
+			"screenSettings": "V Nastavení systému zapněte Data Recruit. Pokud macOS nabídne aplikaci ukončit a znovu otevřít, přijměte: toto okno se vrátí.",
+			"screenNotListed": "Data Recruit v seznamu chybí? Klikněte na + a vyberte Data Recruit ve složce Aplikace.",
+			"screenRestart": "Povoleno. Data Recruit se musí restartovat, aby oprávnění mohl použít.",
+			"screenRecurring": "Při prvním nahrávání se vás macOS zeptá, zda smí Data Recruit přistupovat k obrazovce přímo, bez systémového výběru. Klikněte na Povolit. macOS se čas od času zeptá znovu, to je v pořádku.",
+			"systemAudioPrompt": "macOS se vás zeptá, zda smí Data Recruit nahrávat zvuk z vašeho Macu.",
+			"systemAudioRequested": "Pokud jste odmítli, zapněte Data Recruit v části „Jen záznam systémového zvuku“ v Nastavení systému."
 		},
 		"footer": {
 			"screenRequired": "K nahrávání je potřeba nahrávání obrazovky.",
