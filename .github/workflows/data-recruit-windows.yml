@@ -29,7 +29,7 @@ jobs:
             git fetch --depth=1 https://github.com/Clatasha/Reaction-Station.git 9b4a67e6460d32c5fc1d8861ef606c084bd1ba20
             git read-tree --reset -u FETCH_HEAD
             # Keep only Data Recruit workflows; no inherited schedules or publishing jobs.
-            git rm -r --ignore-unmatch .github/workflows
+            git rm -rf --ignore-unmatch .github/workflows
             git restore --source="$overlay" --staged --worktree -- .github/workflows
             while IFS= read -r item; do
               git restore --source="$overlay" --staged --worktree -- "$item"
