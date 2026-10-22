@@ -176,6 +176,6 @@ export function drawScroll(
 	ctx.fillRect(0, 0, width, height);
 	cards.forEach((card, index) => {
 		const x = cardX(index, cards.length, time, settings);
-		if (x < width && x + cardWidth > 0) ctx.drawImage(card, Math.round(x), 0);
+		if (x < width && x + cardWidth > 0) ctx.drawImage(card, x, 0);
 	});
 }

@@ -1,7 +1,10 @@
+import type { Transition } from "./transitions";
 export type Bookend = {
 	name: string;
 	url: string;
 	duration: number;
+	transition?: Transition;
+	transitionSeconds?: number;
 } & (
 	| { kind: "image"; media: HTMLImageElement }
 	| {
@@ -82,6 +85,8 @@ export function serializeBookend(item: Bookend | null) {
 				name: item.name,
 				url: item.url,
 				duration: item.duration,
+				transition: item.transition ?? "none",
+				transitionSeconds: item.transitionSeconds ?? 0.75,
 				start: item.kind === "video" ? (item.start ?? 0) : 0,
 				volume: item.kind === "video" ? (item.volume ?? 1) : 1,
 				muted: item.kind === "video" ? item.muted : false,

@@ -4,7 +4,7 @@ export interface ExportSettings {
 	fps: 24 | 30 | 60;
 	quality: "standard" | "high";
 }
-export const DEFAULT_EXPORT: ExportSettings = { resolution: 1080, fps: 30, quality: "high" };
+export const DEFAULT_EXPORT: ExportSettings = { resolution: 1080, fps: 60, quality: "high" };
 export function exportGeometry(format: OutputFormat, options: ExportSettings) {
 	const short = options.resolution,
 		long = Math.round((short * 16) / 9 / 2) * 2;

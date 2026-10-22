@@ -16,7 +16,9 @@ import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
 import { geometry, type ScrollSettings, scrollDuration } from "./model";
-import { drawImageFit, drawScroll } from "./render";
+import { drawImageFit } from "./render";
+import { drawSequence } from "./sequence";
+import { transitionGain } from "./transitions";
 
 interface VideoBookend {
 	item: Extract<Bookend, { kind: "video" }>;
@@ -75,10 +77,11 @@ export async function encodeScroll(
 	progress: (value: number) => void,
 	signal: AbortSignal,
 	options: ExportSettings = DEFAULT_EXPORT,
-): Promise<{ bytes: ArrayBuffer; hasAudio: boolean }> {
+): Promise<{ bytes: ArrayBuffer; hasAudio: boolean; poster?: string }> {
 	const { width, height, bitrate } = exportGeometry(settings.format, options);
 	const design = geometry(settings.format);
 	const fps = options.fps;
+	let poster: string | undefined;
 	const canvas = document.createElement("canvas");
 	canvas.width = width;
 	canvas.height = height;
@@ -135,20 +138,26 @@ export async function encodeScroll(
 				const time = frame / fps;
 				const bookend =
 					time < introDuration ? intro : time >= introDuration + scroll ? outro : null;
-				if (bookend?.kind === "image") drawImageFit(ctx, bookend.media, 0, 0, width, height, "fit");
-				else if (bookend?.kind === "video") {
+				let videoFrame: HTMLCanvasElement | OffscreenCanvas | null = null;
+				if (bookend?.kind === "video") {
 					const video = videos.find((value) => value.item === bookend)!;
 					const decoded = await video.frames.next();
-					ctx.fillStyle = "#111827";
-					ctx.fillRect(0, 0, width, height);
-					if (decoded.value) ctx.drawImage(decoded.value.canvas, 0, 0, width, height);
+					if (decoded.value) videoFrame = decoded.value.canvas;
 					else if (!decoded.done) throw new Error(`No readable video frame in ${bookend.name}.`);
-				} else {
-					ctx.save();
-					ctx.scale(width / design.width, height / design.height);
-					drawScroll(ctx, cards, time - introDuration, settings);
-					ctx.restore();
 				}
+				ctx.save();
+				ctx.scale(width / design.width, height / design.height);
+				drawSequence(ctx, cards, settings, time, intro, outro, (item) => {
+					if (item.kind === "image")
+						drawImageFit(ctx, item.media, 0, 0, design.width, design.height, "fit");
+					else {
+						ctx.fillStyle = "#111827";
+						ctx.fillRect(0, 0, design.width, design.height);
+						if (videoFrame) ctx.drawImage(videoFrame, 0, 0, design.width, design.height);
+					}
+				});
+				ctx.restore();
+				if (frame === 0) poster = canvas.toDataURL("image/jpeg", 0.85);
 				await source.add(time, Math.min(1 / fps, total - time));
 				if (frame % 15 === 0) {
 					progress((frame / frames) * (audioCodec === "pcm-s16" ? 0.95 : 1));
@@ -185,7 +194,16 @@ export async function encodeScroll(
 								.getChannelData(Math.min(channel, video.audio.numberOfChannels - 1))
 								.subarray(from, to)
 								.subarray(0, buffer.length - at)
-								.map((value) => value * (video.item.volume ?? 1)),
+								.map(
+									(value, index) =>
+										value *
+										(video.item.volume ?? 1) *
+										transitionGain(
+											video.item,
+											(from + index) / 48_000 - (video.item.start ?? 0),
+											video.item === intro ? "intro" : "outro",
+										),
+								),
 							channel,
 							at,
 						);
@@ -221,7 +239,7 @@ export async function encodeScroll(
 			checkCancelled();
 		}
 		progress(1);
-		return { bytes, hasAudio: audioSource !== null };
+		return { bytes, hasAudio: audioSource !== null, poster };
 	} catch (error) {
 		await output?.cancel().catch(() => {
 			/* Keep the original error. */

@@ -1030,3 +1030,15 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 - Passed: 26 focused tests; app/test TypeScript; changed-file Biome; production bundles. Browser test deliberately removed AudioEncoder and used a real FFmpeg desktop bridge, with VP8/Opus WebM bookends.
 - Measured final MP4: H.264 720×1280 / 24 FPS / 3.416667 s; AAC audio / 3.4 s. Video bitstream SHA256 identical before/after finishing. Stereo-channel RMS: intro 0.044403 at 50% volume; scroll 0; outro 0.022058 at 25% volume.
 - Native Windows/macOS manual pass skipped because native computer control is unavailable here. Packaged Windows smoke still required; this partial pass does not authorize stable release promotion.
+
+
+### Data Recruit 0.1.3 motion/transitions — 2026-10-22 — Partial, Linux workspace
+
+- Replaced whole-pixel scroll coordinates with fractional positions. Canvas playback follows requestAnimationFrame and an absolute clock; control updates are throttled independently to 10 Hz. New projects default to 60 FPS; saved projects keep their chosen rate.
+- Added optional intro-exit/outro-entrance effects (none/fade/scroll/squeeze/rise/fall), duration controls, matching audio envelopes and project serialization. Shared scene composition drives preview and export; moving cards remain continuous at the intro boundary.
+- Continue in Editor preloads its modules during export and displays the first rendered frame on a dark handoff screen until native preview readiness. Handoff has an escape to the editor or builder. Reaction Station's separate clip-effects black-screen issue was not changed.
+- Passed: 33 focused tests, app/test type checks, changed-file Biome, production bundles. Real headless Chromium exercised every effect, project roundtrip, image/video bookends and 60 FPS H.264/AAC export through a real FFmpeg bridge with browser AudioEncoder disabled.
+- Motion sample: 156 canvas draws retained fractional positions while the controls updated 15 times. Preview/export sample RGB: fade [146,28,41] versus [144,26,40]; outro [0,0,255] versus [0,0,254]. Output duration exactly 6 s at 720×1280, 60 FPS.
+- Stereo channel RMS: intro full 0.088511 / fading 0.046745; scroll 0; outro fading 0.046802 / full 0.087992. Editor handoff waits for native canvas readiness in a focused test. Windows packaged smoke includes transitions and waits for the handoff to finish.
+- Skipped: installed Windows/macOS visual pass and native handoff timing, because native computer control is unavailable here. Packaged Windows build is required; this partial pass does not authorize stable release promotion.
+- Full suite: 4326 tests passed in 342 suites; the same 8 suites could not load because the local Electron desktop binary is absent. No assertion failures.

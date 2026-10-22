@@ -17,10 +17,10 @@ describe("export dimensions", () => {
 		});
 	});
 	it("scales bitrate with resolution, frame rate and quality", () => {
-		const baseline = exportGeometry("landscape", DEFAULT_EXPORT).bitrate;
+		const baseline = exportGeometry("landscape", { ...DEFAULT_EXPORT, fps: 30 }).bitrate;
 		expect(exportGeometry("landscape", { ...DEFAULT_EXPORT, fps: 60 }).bitrate).toBe(baseline * 2);
 		expect(
-			exportGeometry("landscape", { ...DEFAULT_EXPORT, quality: "standard" }).bitrate,
+			exportGeometry("landscape", { ...DEFAULT_EXPORT, fps: 30, quality: "standard" }).bitrate,
 		).toBeLessThan(baseline);
 	});
 });

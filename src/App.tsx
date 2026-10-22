@@ -15,14 +15,16 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { EditorDialogsProvider } from "./contexts/EditorDialogsContext";
 import { useScopedT } from "./contexts/I18nContext";
 import { ShortcutsProvider } from "./contexts/ShortcutsContext";
+import { EditorHandoff } from "./data-recruit/EditorHandoff";
+import { usePreviewPlayback } from "./lib/ai-edition/previewPlayback";
 import { loadAllCustomFonts } from "./lib/customFonts";
 import { registerTextFontFaces } from "./lib/textFonts";
 
-const VideoEditorEntry = lazy(() =>
+const loadEditorEntry = () =>
 	import("./components/ai-edition/AiEditionShell").then((module) => ({
 		default: module.default,
-	})),
-);
+	}));
+const VideoEditorEntry = lazy(loadEditorEntry);
 const DataRecruit = lazy(() => import("./data-recruit/DataRecruit"));
 const CliExportRunner = lazy(() => import("./cli/CliExportRunner"));
 const CliRecordRunner = lazy(() => import("./cli/CliRecordRunner"));
@@ -40,6 +42,7 @@ const ProviderSettingsDialog = lazy(() =>
 );
 
 export default function App() {
+	const [handoff, setHandoff] = useState<{ poster?: string } | null>(null);
 	const [dataSession] = useState(
 		() =>
 			!new URLSearchParams(window.location.search).get("windowType") ||
@@ -129,7 +132,13 @@ export default function App() {
 						<EditorDialogsProvider>
 							<Suspense
 								fallback={
-									<div className="flex flex-col items-center justify-center gap-3 h-screen bg-[var(--bg)]">
+									<div
+										className="flex flex-col items-center justify-center gap-3 h-screen"
+										style={{
+											background: dataSession ? "#0d111a" : "var(--bg)",
+											color: dataSession ? "#edf2fb" : "var(--text)",
+										}}
+									>
 										<svg
 											className="animate-spin text-[var(--brand)]"
 											xmlns="http://www.w3.org/2000/svg"
@@ -177,10 +186,40 @@ export default function App() {
 	return (
 		<TooltipProvider>
 			{dataSession && (
-				<div style={{ display: windowType === "data-recruit" ? "block" : "none" }}>
-					<Suspense fallback={null}>
+				<div
+					style={{
+						display: windowType === "data-recruit" ? "block" : "none",
+						background: "#0d111a",
+						minHeight: "100vh",
+					}}
+				>
+					<Suspense
+						fallback={
+							<div
+								role="status"
+								style={{
+									height: "100vh",
+									display: "grid",
+									placeItems: "center",
+									color: "#edf2fb",
+									background: "#0d111a",
+								}}
+							>
+								Opening Data Recruit…
+							</div>
+						}
+					>
 						<DataRecruit
-							onOpenEditor={() => {
+							onPrepareEditor={() =>
+								Promise.all([
+									loadEditorEntry(),
+									import("./components/video-editor/ShortcutsConfigDialog"),
+									import("./components/ai-edition/ProviderSettings"),
+								])
+							}
+							onOpenEditor={(poster) => {
+								usePreviewPlayback.setState({ nativeStatus: "loading" });
+								setHandoff({ poster });
 								window.history.replaceState(null, "", "?windowType=editor");
 								setWindowType("editor");
 							}}
@@ -211,6 +250,17 @@ export default function App() {
 				>
 					← Return to builder
 				</button>
+			)}
+			{handoff && windowType === "editor" && (
+				<EditorHandoff
+					poster={handoff.poster}
+					onReady={() => setHandoff(null)}
+					onBack={() => {
+						setHandoff(null);
+						window.history.replaceState(null, "", "?windowType=data-recruit");
+						setWindowType("data-recruit");
+					}}
+				/>
 			)}
 			<Toaster />
 		</TooltipProvider>

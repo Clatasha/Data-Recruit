@@ -1,4 +1,4 @@
-import { type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import logoMark from "@/assets/data-recruit-mark.svg";
 import { attachClipAudio } from "@/lib/ai-edition/document/editorTracks";
@@ -22,7 +22,10 @@ import {
 } from "./model";
 import { useProjectHistory } from "./projectHistory";
 import { recovery } from "./recovery";
-import { type CardImage, drawImageFit, drawScroll, renderCard } from "./render";
+import { type CardImage, renderCard } from "./render";
+import { drawSequence } from "./sequence";
+import { sequenceFrame, TRANSITIONS, type Transition, transitionGain } from "./transitions";
+import { usePreviewClock } from "./usePreviewClock";
 import "./data-recruit.css";
 
 const rowSchema = z.object({
@@ -58,6 +61,8 @@ const bookendSchema = z
 	.object({
 		name: z.string(),
 		url: z.string().regex(/^data:(?:image|video)\//),
+		transition: z.enum(TRANSITIONS).default("none"),
+		transitionSeconds: z.number().min(0.1).max(3).default(0.75),
 		kind: z.enum(["image", "video"]).default("image"),
 		start: z.number().min(0).max(86400).default(0),
 		volume: z.number().min(0).max(1).default(1),
@@ -105,7 +110,13 @@ function download(blob: Blob, name: string) {
 const clock = (time: number) =>
 	`${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, "0")}`;
 
-export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => void }) {
+export default function DataRecruit({
+	onOpenEditor,
+	onPrepareEditor,
+}: {
+	onOpenEditor?: (poster?: string) => void;
+	onPrepareEditor?: () => Promise<unknown>;
+}) {
 	const history = useProjectHistory({
 		text: SAMPLE_TEXT,
 		template: structuredClone(TEMPLATES[0]) as CardTemplate,
@@ -253,76 +264,56 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		setPlaying(false);
 		setTime(0);
 	}, [text, images, template, settings, intro, outro, order]);
-	useEffect(() => {
-		const ctx = canvasRef.current?.getContext("2d");
-		if (!ctx) return;
-		const active =
-			intro && time < introTime ? intro : outro && time >= introTime + scroll ? outro : null;
-		const offset = active === outro ? introTime + scroll : 0;
-		const paint = () => {
-			if (active) drawImageFit(ctx, active.media, 0, 0, dims.width, dims.height, "fit");
-			else drawScroll(ctx, rendered, Math.max(0, time - introTime), settings);
-		};
-		for (const item of [intro, outro]) {
-			if (item?.kind !== "video") continue;
-			if (item === active) {
-				const target = Math.max(
-					0,
-					Math.min(item.sourceDuration - 0.001, time - offset + (item.start ?? 0)),
-				);
-				if (
-					!item.media.seeking &&
-					Math.abs(item.media.currentTime - target) > (playing ? 0.2 : 0.015)
-				)
-					item.media.currentTime = target;
-				item.media.muted = item.muted;
-				item.media.volume = item.volume ?? 1;
-				if (playing && !busy)
-					void item.media.play().catch(() => {
-						setPlaying(false);
-						setMessage("Video playback could not start. Press Play to retry.");
-					});
-				else item.media.pause();
-			} else item.media.pause();
-		}
-		paint();
-		if (active?.kind === "video") active.media.addEventListener("seeked", paint);
-		return () => {
-			if (active?.kind === "video") active.media.removeEventListener("seeked", paint);
-		};
-	}, [
-		time,
-		rendered,
-		intro,
-		outro,
-		introTime,
-		scroll,
-		settings,
-		dims.width,
-		dims.height,
+	const paint = useCallback(
+		(at: number) => {
+			const ctx = canvasRef.current?.getContext("2d");
+			if (!ctx) return;
+			const frame = sequenceFrame(at, scroll, intro, outro);
+			const active = frame.slot === "intro" ? intro : frame.slot === "outro" ? outro : null;
+			for (const item of [intro, outro]) {
+				if (item?.kind !== "video") continue;
+				if (item === active) {
+					const target = Math.max(
+						0,
+						Math.min(item.sourceDuration - 0.001, frame.localTime + (item.start ?? 0)),
+					);
+					if (
+						!item.media.seeking &&
+						Math.abs(item.media.currentTime - target) > (playing ? 0.2 : 0.015)
+					)
+						item.media.currentTime = target;
+					item.media.muted = item.muted;
+					item.media.volume =
+						(item.volume ?? 1) * transitionGain(item, frame.localTime, frame.slot!);
+					if (playing && !busy && item.media.paused)
+						void item.media.play().catch(() => {
+							setPlaying(false);
+							setMessage("Video playback could not start. Press Play to retry.");
+						});
+					else if (!playing || busy) item.media.pause();
+				} else item.media.pause();
+			}
+			drawSequence(ctx, rendered, settings, at, intro, outro);
+		},
+		[rendered, settings, intro, outro, scroll, playing, busy],
+	);
+	const livePosition = usePreviewClock({
+		position: time,
 		playing,
-		busy,
-	]);
+		duration: total,
+		paint,
+		onPosition: setTime,
+		onEnded: () => setPlaying(false),
+	});
 	useEffect(() => {
-		if (!playing) return;
-		let frame = 0;
-		let previous = performance.now();
-		const tick = (now: number) => {
-			const delta = (now - previous) / 1000;
-			previous = now;
-			setTime((value) => {
-				const next = Math.min(total, value + delta);
-
-				return next;
-			});
-			frame = requestAnimationFrame(tick);
+		const repaint = () => paint(livePosition.current);
+		for (const item of [intro, outro])
+			if (item?.kind === "video") item.media.addEventListener("seeked", repaint);
+		return () => {
+			for (const item of [intro, outro])
+				if (item?.kind === "video") item.media.removeEventListener("seeked", repaint);
 		};
-		frame = requestAnimationFrame(tick);
-		return () => cancelAnimationFrame(frame);
-	}, [playing, total]);
-	useEffect(() => {
-		if (time >= total && playing) setPlaying(false);
-	}, [time, total, playing]);
+	}, [intro, outro, paint, livePosition]);
 	useEffect(
 		() => () => {
 			pauseBookends(intro, outro);
@@ -429,7 +420,11 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							item.muted,
 							item.start,
 							item.volume,
-						)
+						).then((media) => ({
+							...media,
+							transition: item.transition,
+							transitionSeconds: item.transitionSeconds,
+						}))
 					: null;
 			const [first, last] = await Promise.all([
 				restoreBookend(value.intro),
@@ -481,15 +476,18 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 		const controller = new AbortController();
 		abortRef.current = controller;
 		try {
-			const { bytes, hasAudio } = await encodeScroll(
-				rendered,
-				settings,
-				intro,
-				outro,
-				setProgress,
-				controller.signal,
-				exportOptions,
-			);
+			const [{ bytes, hasAudio, poster }] = await Promise.all([
+				encodeScroll(
+					rendered,
+					settings,
+					intro,
+					outro,
+					setProgress,
+					controller.signal,
+					exportOptions,
+				),
+				editor ? onPrepareEditor?.() : Promise.resolve(),
+			]);
 			if (controller.signal.aborted) throw new Error("Build cancelled.");
 			if (editor) {
 				if (!window.electronAPI?.dataRecruitSaveVideo)
@@ -529,7 +527,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				};
 				if (!(await store().saveDocument(next, { history: false })))
 					throw new Error("Could not save the editor timeline.");
-				onOpenEditor?.();
+				onOpenEditor?.(poster);
 			} else {
 				if (window.electronAPI?.dataRecruitExportVideo) {
 					const saved = await window.electronAPI.dataRecruitExportVideo(bytes);
@@ -544,6 +542,7 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 				}
 			}
 		} catch (error) {
+			controller.abort();
 			fail(error);
 		} finally {
 			setBusy(false);
@@ -1052,8 +1051,10 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							type="button"
 							disabled={busy}
 							onClick={() => {
-								if (playing) setPlaying(false);
-								else if (ensureReady()) {
+								if (playing) {
+									setTime(livePosition.current);
+									setPlaying(false);
+								} else if (ensureReady()) {
 									if (time >= total) setTime(0);
 									setPlaying(true);
 								}
@@ -1329,6 +1330,57 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 											}}
 										/>
 									</label>
+									{item && (
+										<>
+											<label>
+												{kind === "intro" ? "Intro exit effect" : "Outro entrance effect"}
+												<select
+													aria-label={`${kind} transition`}
+													value={item.transition ?? "none"}
+													onChange={(event) =>
+														setter({ ...item, transition: event.target.value as Transition })
+													}
+												>
+													{TRANSITIONS.map((effect) => (
+														<option key={effect} value={effect}>
+															{
+																{
+																	none: "None",
+																	fade: "Fade",
+																	scroll: "Scroll with cards",
+																	squeeze: "Squeeze & burst",
+																	rise: "Rise up",
+																	fall: "Go down",
+																}[effect]
+															}
+														</option>
+													))}
+												</select>
+											</label>
+											{item.transition && item.transition !== "none" && (
+												<label>
+													Transition seconds
+													<input
+														aria-label={`${kind} transition seconds`}
+														type="number"
+														min="0.1"
+														max="3"
+														step="0.1"
+														value={item.transitionSeconds ?? 0.75}
+														onChange={(event) =>
+															setter({
+																...item,
+																transitionSeconds: Math.max(
+																	0.1,
+																	Math.min(3, Number(event.target.value) || 0.75),
+																),
+															})
+														}
+													/>
+												</label>
+											)}
+										</>
+									)}
 									{item?.kind === "video" && (
 										<>
 											<label>
@@ -1437,11 +1489,13 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 							);
 						})}
 						<small>
-							Choose an image or video. Video clips keep their audio and can be shortened here.
+							Choose an image or video. Effects blend the intro’s end or the outro’s beginning,
+							including audio. Timing stays unchanged.
 						</small>
 					</section>
 					<section>
 						<h2>Export settings</h2>
+						<small>60 FPS is recommended for smooth scrolling.</small>
 						<small>MP4 · H.264 video</small>
 						<label>
 							Resolution

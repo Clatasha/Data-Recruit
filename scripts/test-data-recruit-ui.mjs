@@ -138,6 +138,8 @@ try {
 		.getByLabel("Choose outro image or video")
 		.setInputFiles(path.join(output, "outro.webm"));
 	await page.getByRole("status").filter({ hasText: "Outro video added" }).waitFor();
+	await page.getByLabel("intro transition", { exact: true }).selectOption("fade");
+	await page.getByLabel("outro transition", { exact: true }).selectOption("rise");
 	await page.getByRole("button", { name: "Export MP4" }).click();
 	await page.waitForFunction(
 		() => {
@@ -189,14 +191,16 @@ try {
 	assert(rms(5.2, 5.8) > 0.02, "Outro audio must start after the scrolling section");
 	await page.getByRole("button", { name: "Continue in Editor" }).click();
 	await page
-		.getByRole("button", { name: "Return to builder", exact: false })
+		.getByRole("button", { name: "← Return to builder", exact: true })
 		.waitFor({ timeout: 120_000 });
 	await page
 		.getByText("Intro and outro audio", { exact: false })
 		.first()
 		.waitFor({ timeout: 30_000 });
+	await page.locator(".dr-handoff").waitFor({ state: "hidden", timeout: 120_000 });
+	await page.getByTestId("native-compositor-mount").waitFor({ timeout: 30_000 });
 	await page.screenshot({ path: path.join(output, "editor.png") });
-	await page.getByRole("button", { name: "Return to builder", exact: false }).click();
+	await page.getByRole("button", { name: "← Return to builder", exact: true }).click();
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor();
 	assert.equal(await page.locator(".dr-images button").count(), 3);
 	assert.deepEqual(errors, []);

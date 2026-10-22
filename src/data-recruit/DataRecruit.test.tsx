@@ -7,6 +7,7 @@ import { encodeScroll } from "./export";
 vi.mock("./export", () => ({
 	encodeScroll: vi.fn(async () => ({ bytes: new ArrayBuffer(8), hasAudio: false })),
 }));
+vi.mock("./sequence", () => ({ drawSequence: vi.fn() }));
 vi.mock("./render", () => ({
 	renderCard: () => document.createElement("canvas"),
 	drawImageFit: vi.fn(),

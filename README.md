@@ -53,3 +53,11 @@ Run `npx tsc --noEmit`, `npx tsc -p tsconfig.test.json --noEmit`, `npm test`. Bu
 ## Credits
 
 Reaction Station, OpenScreen, Siddharth Vaddem and the OpenScreen contributors. Original MIT license and third-party notices are retained.
+
+## Motion and transitions
+
+The live canvas uses its own display clock and fractional positions; the controls update independently. New projects default to 60 FPS. Saved projects retain their chosen frame rate.
+
+Each intro/outro can use None, Fade, Scroll with cards, Squeeze & burst, Rise up or Go down, with an adjustable effect duration. Effects use the end of the intro and the beginning of the outro; they do not add timeline time. Audio fades with the effect. Scroll transitions follow the selected direction and keep the cards moving across the handover. Preview and MP4 use the same compositor.
+
+Continue in Editor preloads the editor while rendering, then holds the first exported frame on a dark loading screen until the editor's native preview is ready. You can show the editor or return to the builder while it prepares.
