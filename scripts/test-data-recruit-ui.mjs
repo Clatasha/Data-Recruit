@@ -234,6 +234,12 @@ try {
 		transitionSamples.push({ time, pixels });
 		await page.screenshot({ path: path.join(output, `connected-${time}.png`) });
 	}
+	await page.evaluate(() => {
+		const supported = VideoDecoder.isConfigSupported.bind(VideoDecoder);
+		VideoDecoder.isConfigSupported = async (config) =>
+			config.codec.startsWith("avc") ? { supported: false, config } : supported(config);
+	});
+
 	await page.getByRole("button", { name: "Export MP4" }).click();
 	await page.waitForFunction(
 		() => {

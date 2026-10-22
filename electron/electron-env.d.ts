@@ -24,6 +24,13 @@ declare namespace NodeJS {
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
 	electronAPI: {
+		dataRecruitVideoProxy?: (
+			id: string,
+			start: number,
+			duration: number,
+			job: string,
+		) => Promise<string>;
+		dataRecruitReleaseVideoProxy?: (id: string) => Promise<void>;
 		dataRecruitBookendAudio?: (
 			id: string,
 			start: number,

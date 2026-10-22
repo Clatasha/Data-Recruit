@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 	rm: vi.fn(),
 	open: vi.fn(),
 	decode: vi.fn(),
+	proxy: vi.fn(),
 }));
 vi.mock("electron", () => ({
 	app: { getPath: () => "/app-data" },
@@ -28,6 +29,8 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 vi.mock("./data-recruit-media-audio", () => ({ decodeBookendAudio: mocks.decode }));
+
+vi.mock("./data-recruit-media-video", () => ({ createBookendVideoProxy: mocks.proxy }));
 
 import { registerDataRecruitMediaIpc } from "./data-recruit-media";
 
@@ -121,4 +124,29 @@ it("imports multiple music tracks as retained copies and cleans a failed batch",
 	mocks.rm.mockResolvedValue(undefined);
 	await expect(handler("pick-music")({ sender: {} })).rejects.toThrow("disk full");
 	expect(mocks.rm).toHaveBeenCalled();
+});
+
+it("confines temporary video proxies to their owning window and removes them after use", async () => {
+	const sender = { id: 10, once: vi.fn(), removeListener: vi.fn() };
+	mocks.proxy.mockResolvedValue(undefined);
+	mocks.rm.mockResolvedValue(undefined);
+	const url = await handler("video-proxy")({ sender }, id, 7, 3, "video-proxy-job");
+	expect(mocks.proxy).toHaveBeenCalledWith(
+		expect.stringContaining(id),
+		expect.stringMatching(/\.webm$/),
+		7,
+		3,
+		expect.any(AbortSignal),
+	);
+	const proxyId = url.split(":")[1];
+	await handler("release-video-proxy")({ sender: { id: 99 } }, proxyId);
+	expect(mocks.rm).not.toHaveBeenCalled();
+	await handler("release-video-proxy")({ sender }, proxyId);
+	expect(mocks.rm).toHaveBeenCalledOnce();
+	await expect(
+		handler("video-proxy")({ sender }, "../../private.mp4", 0, 3, "video-proxy-job"),
+	).rejects.toThrow("Invalid");
+	await expect(handler("video-proxy")({ sender }, id, 0, 700, "video-proxy-job")).rejects.toThrow(
+		"Invalid",
+	);
 });

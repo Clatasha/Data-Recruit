@@ -86,6 +86,65 @@ export function registerDataRecruitMediaIpc() {
 	});
 
 	const audioJobs = new Map<string, AbortController>();
+	const proxies = new Map<string, { target: string; cleanup: () => void }>();
+	ipcMain.handle(
+		"data-recruit:video-proxy",
+		async (event, id: string, start: number, duration: number, job: string) => {
+			const source = mediaPath(id);
+			if (
+				!Number.isFinite(start) ||
+				start < 0 ||
+				start > 86400 ||
+				!Number.isFinite(duration) ||
+				duration < 0.1 ||
+				duration > 600 ||
+				typeof job !== "string" ||
+				!/^[a-z0-9-]{8,80}$/i.test(job)
+			)
+				throw new Error("Invalid video proxy request.");
+			const key = `${event.sender.id}:${job}`;
+			if (audioJobs.has(key)) throw new Error("Export job already running.");
+			const controller = new AbortController(),
+				abort = () => controller.abort();
+			const proxyId = `${crypto.randomUUID()}.webm`,
+				target = mediaPath(proxyId);
+			audioJobs.set(key, controller);
+			event.sender.once("destroyed", abort);
+			try {
+				const { createBookendVideoProxy } = await import("./data-recruit-media-video");
+				await createBookendVideoProxy(source, target, start, duration, controller.signal);
+				controller.signal.throwIfAborted();
+				const proxyKey = `${event.sender.id}:${proxyId}`;
+				const cleanup = () => {
+					proxies.delete(proxyKey);
+					void fs.rm(target, { force: true }).catch(() => {
+						/* Best-effort shutdown cleanup. */
+					});
+				};
+				proxies.set(proxyKey, { target, cleanup });
+				event.sender.once("destroyed", cleanup);
+				return `data-recruit-media:${proxyId}`;
+			} catch (error) {
+				await fs.rm(target, { force: true }).catch(() => {
+					/* Preserve the decoder failure. */
+				});
+				throw error;
+			} finally {
+				audioJobs.delete(key);
+				event.sender.removeListener("destroyed", abort);
+			}
+		},
+	);
+	ipcMain.handle("data-recruit:release-video-proxy", async (event, id: string) => {
+		if (typeof id !== "string") return;
+		const key = `${event.sender.id}:${id}`,
+			proxy = proxies.get(key);
+		if (!proxy) return;
+		proxies.delete(key);
+		event.sender.removeListener("destroyed", proxy.cleanup);
+		await fs.rm(proxy.target, { force: true });
+	});
+
 	ipcMain.handle(
 		"data-recruit:bookend-audio",
 		async (event, id: string, start: number, duration: number, job: string) => {

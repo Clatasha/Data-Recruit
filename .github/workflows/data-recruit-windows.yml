@@ -72,7 +72,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npx tsc -p tsconfig.test.json --noEmit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: npx vitest run src/data-recruit electron/data-recruit.test.ts electron/data-recruit-audio.test.ts electron/data-recruit-media.test.ts electron/data-recruit-media-audio.test.ts
+      - run: npx vitest run src/data-recruit electron/data-recruit.test.ts electron/data-recruit-audio.test.ts electron/data-recruit-media.test.ts electron/data-recruit-media-audio.test.ts electron/data-recruit-media-video.test.ts
       - name: Install Vulkan SDK for inherited speech tools
         uses: jakoch/install-vulkan-sdk-action@v1
         with:

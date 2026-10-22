@@ -5,7 +5,6 @@ import {
 	BufferTarget,
 	CanvasSource,
 	canEncodeVideo,
-	type Input,
 	MovOutputFormat,
 	Mp4OutputFormat,
 	Output,
@@ -15,7 +14,8 @@ import {
 import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
-import { copyAudioChunk, openBookendInput } from "./mediaSource";
+import { openExportVideo } from "./exportVideoInput";
+import { copyAudioChunk } from "./mediaSource";
 import { geometry, type ScrollSettings } from "./model";
 import { type MusicClip, mixMusic } from "./music";
 import { drawImageFit } from "./render";
@@ -28,7 +28,7 @@ interface VideoBookend {
 	offset: number;
 	visibleStart: number;
 	visibleEnd: number;
-	input: Input;
+	dispose: () => Promise<void>;
 	frames: AsyncGenerator<HTMLCanvasElement, void, unknown>;
 	audio: AudioBuffer | null;
 }
@@ -42,17 +42,15 @@ async function prepareVideo(
 	visibleEnd: number,
 	signal: AbortSignal,
 ): Promise<VideoBookend> {
-	const input = await openBookendInput(item.url);
+	const opened = await openExportVideo(item.url, item.start ?? 0, item.duration, signal);
+	const { input, track, first, videoFirst, videoStart } = opened;
 	try {
-		const track = await input.getPrimaryVideoTrack();
-		if (!track) throw new Error(`No video track in ${item.name}.`);
-		const first = await track.getFirstTimestamp();
 		const color = item.colorSpace ?? previewColor(item.media);
 		const sink = new VideoSampleSink(track);
 		function* timestamps() {
 			for (let frame = Math.ceil(visibleStart * fps); frame < Math.ceil(visibleEnd * fps); frame++)
-				yield first +
-					(item.start ?? 0) +
+				yield videoFirst +
+					videoStart +
 					Math.max(0, Math.min(item.duration - 1 / fps, frame / fps - offset));
 		}
 		async function* decodedFrames() {
@@ -144,12 +142,14 @@ async function prepareVideo(
 			offset,
 			visibleStart,
 			visibleEnd,
-			input,
+			dispose: opened.dispose,
 			frames: decodedFrames(),
 			audio,
 		};
 	} catch (error) {
-		input.dispose();
+		await opened.dispose().catch(() => {
+			/* Preserve preparation error. */
+		});
 		throw error;
 	}
 }
@@ -328,7 +328,9 @@ export async function encodeScroll(
 		throw error;
 	} finally {
 		for (const video of videos) {
-			video.input.dispose();
+			await video.dispose().catch(() => {
+				/* Continue releasing the remaining inputs. */
+			});
 			await video.frames.return().catch(() => {
 				/* Input disposal still frees decoders. */
 			});
