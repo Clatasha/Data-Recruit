@@ -5,6 +5,8 @@ on:
     branches: [feat/data-recruit]
     paths:
       - .github/workflows/data-recruit-windows.yml
+      - crates/**
+      - scripts/build-windows-compositor-addon.mjs
       - src/**
       - electron/**
       - scripts/test-data-recruit-ui.mjs
@@ -53,6 +55,7 @@ jobs:
     timeout-minutes: 90
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      DATA_RECRUIT_DECODER_TESTS: "1"
     steps:
       - uses: actions/checkout@v4
         with:

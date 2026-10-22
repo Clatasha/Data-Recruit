@@ -1042,3 +1042,10 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 - Stereo channel RMS: intro full 0.088511 / fading 0.046745; scroll 0; outro fading 0.046802 / full 0.087992. Editor handoff waits for native canvas readiness in a focused test. Windows packaged smoke includes transitions and waits for the handoff to finish.
 - Skipped: installed Windows/macOS visual pass and native handoff timing, because native computer control is unavailable here. Packaged Windows build is required; this partial pass does not authorize stable release promotion.
 - Full suite: 4326 tests passed in 342 suites; the same 8 suites could not load because the local Electron desktop binary is absent. No assertion failures.
+
+### Data Recruit decoder fallback — 2026-10-22 — Pending Windows CI
+
+- Run 39767076381 built/exported successfully, then revealed `hwdevice_ctx_init` failure in the editor preview on hosted Windows.
+- Decoder now retries with a fresh software codec context and uploads frames to the existing rendering device when D3D11VA attach/open fails. Hardware decoding remains preferred.
+- Added a Windows regression forcing hardware initialization failure on WARP, checking software selection, clean device references, decoded pixels and nonzero seeking. Windows build runs that exact test before packaging; smoke requires a painted native canvas and reports preview alerts on failure.
+- Local native compilation and installed Windows/macOS manual QA unavailable on this Linux host. Windows CI remains required; no stable release promotion.

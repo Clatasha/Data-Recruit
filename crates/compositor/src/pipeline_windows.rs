@@ -37,6 +37,7 @@ enum DecodeFrameTestFault {
     CloneNull,
     EofSendError,
     AttachBufferRefNull,
+    HardwareDeviceInit,
 }
 
 #[cfg(test)]
@@ -402,6 +403,10 @@ unsafe fn require_decoder(
 }
 
 unsafe fn attach_d3d11va(dctx: *mut AVCodecContext, gpu: &Gpu) -> Result<*mut AVBufferRef> {
+    #[cfg(test)]
+    if decode_frame_test_fault_is(DecodeFrameTestFault::HardwareDeviceInit) {
+        bail!("injected hwdevice_ctx_init failure");
+    }
     let mut hwdev = av_hwdevice_ctx_alloc(AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA);
     if hwdev.is_null() {
         bail!("av_hwdevice_ctx_alloc");
@@ -845,24 +850,47 @@ impl Decoder {
         )?;
         allow_d3d11va_h264_baseline(resources.dctx);
 
-        // Hardware D3D11VA is the H.264 capture path. WARP has no video decoder
-        // (`tests/warp_device_cannot_decode.rs`). AV1/VP9 (legacy WebMs, #554)
-        // take the same software CpuFrames axis as Backend::Cpu.
+        // A rendering device can exist without a working video decoder (for
+        // example on Windows VMs). Keep GPU composition but upload CPU frames
+        // when D3D11VA initialization or codec opening fails.
         let want_hw = gpu.backend != Backend::Cpu && d3d11va_for_codec(codec_id);
-        let cpu = if want_hw {
+        let mut hardware_open = false;
+        if want_hw {
+            let attempt = (|| -> Result<()> {
+                resources.hwdev = attach_d3d11va(resources.dctx, gpu)?;
+                averr(
+                    avcodec_open2(resources.dctx, dec, ptr::null_mut()),
+                    "avcodec_open2 (D3D11VA)",
+                )
+            })();
+            match attempt {
+                Ok(()) => hardware_open = true,
+                Err(error) => {
+                    eprintln!("D3D11VA unavailable; using software video decoding: {error:#}");
+                    // Recreate the context: a failed hardware open may leave
+                    // callbacks, device references or partial codec state behind.
+                    avcodec_free_context(&mut resources.dctx);
+                    av_buffer_unref(&mut resources.hwdev);
+                    let (_, fresh) = require_decoder(codecpar)?;
+                    resources.dctx = fresh;
+                    averr(
+                        avcodec_parameters_to_context(resources.dctx, codecpar),
+                        "params_to_ctx (software fallback)",
+                    )?;
+                }
+            }
+        }
+        let cpu = if hardware_open {
             None
         } else {
             (*resources.dctx).thread_count = 0;
-            Some(CpuFrames::new(gpu)?)
+            let cpu = CpuFrames::new(gpu)?;
+            averr(
+                avcodec_open2(resources.dctx, dec, ptr::null_mut()),
+                "avcodec_open2 (software)",
+            )?;
+            Some(cpu)
         };
-
-        if want_hw {
-            resources.hwdev = attach_d3d11va(resources.dctx, gpu)?;
-        }
-        averr(
-            avcodec_open2(resources.dctx, dec, ptr::null_mut()),
-            "avcodec_open2",
-        )?;
         let (fmt, dctx, hwdev) = resources.into_raw();
 
         Ok(Decoder {
@@ -2843,6 +2871,29 @@ mod tests {
         println!(
             "CORE_ASSERTIONS_COMPLETED:av1_software_seek_preserves_the_nonzero_target_timestamp"
         );
+    }
+
+    #[test]
+    fn h264_falls_back_when_hardware_decoder_init_fails() {
+        // WARP makes this regression runnable without a physical GPU. Force the
+        // hardware attempt, then inject the same failure as the hosted runner.
+        let mut gpu = Gpu::create_backend(Backend::Cpu, false).expect("WARP rendering device");
+        gpu.backend = Backend::Hardware;
+        let path = encode_color_for_duration(
+            &["-c:v", "libopenh264", "-b:v", "200k"],
+            "fallback.mp4",
+            "0.8",
+        );
+        let _fault = install_simple_decode_frame_fault(DecodeFrameTestFault::HardwareDeviceInit);
+        let mut dec = unsafe { Decoder::open(path.to_str().expect("utf8 path"), &gpu) }
+            .unwrap_or_else(|e| panic!("software fallback: {e:#}"));
+        assert!(dec.cpu.is_some());
+        assert!(dec.hwdev.is_null());
+        assert!(unsafe { (*dec.dctx).hw_device_ctx.is_null() });
+        unsafe { first_decoded_frame(&mut dec) };
+        let frame = unsafe { dec.seek_to(0.4) }.expect("software fallback seek");
+        assert!(!frame.is_null(), "fallback must decode after a nonzero seek");
+        assert!(unsafe { dec.cur_time_sec() } >= 0.38);
     }
 
     #[test]

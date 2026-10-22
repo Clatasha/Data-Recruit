@@ -198,7 +198,9 @@ try {
 		.first()
 		.waitFor({ timeout: 30_000 });
 	await page.locator(".dr-handoff").waitFor({ state: "hidden", timeout: 120_000 });
-	await page.getByTestId("native-compositor-mount").waitFor({ timeout: 30_000 });
+	await page
+		.locator('[data-testid="native-compositor-mount"][data-painted="true"]')
+		.waitFor({ timeout: 30_000 });
 	await page.screenshot({ path: path.join(output, "editor.png") });
 	await page.getByRole("button", { name: "← Return to builder", exact: true }).click();
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor();
@@ -210,9 +212,9 @@ try {
 } catch (error) {
 	if (page) {
 		console.error(
-			"Current builder status:",
+			"Current status and preview errors:",
 			await page
-				.getByRole("status")
+				.locator('[role="status"], [role="alert"]')
 				.allTextContents()
 				.catch(() => []),
 		);
