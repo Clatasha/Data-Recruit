@@ -17,6 +17,7 @@ import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
 import { copyAudioChunk, openBookendInput } from "./mediaSource";
 import { geometry, type ScrollSettings } from "./model";
+import { type MusicClip, mixMusic } from "./music";
 import { drawImageFit } from "./render";
 import { drawSequence } from "./sequence";
 import { sequenceTiming } from "./transitions";
@@ -161,6 +162,7 @@ export async function encodeScroll(
 	progress: (value: number) => void,
 	signal: AbortSignal,
 	options: ExportSettings = DEFAULT_EXPORT,
+	music: MusicClip[] = [],
 ): Promise<{ bytes: ArrayBuffer; hasAudio: boolean; poster?: string }> {
 	const { width, height, bitrate } = exportGeometry(settings.format, options);
 	const design = geometry(settings.format);
@@ -199,7 +201,9 @@ export async function encodeScroll(
 				await prepareVideo(outro, timing.outroHold, fps, timing.outroStart, total, signal),
 			);
 		checkCancelled();
-		const hasAudio = videos.some((video) => video.audio);
+		const hasAudio =
+			videos.some((video) => video.audio) ||
+			music.some((clip) => !clip.muted && clip.volume > 0 && clip.at < total);
 		const audioCodec = hasAudio
 			? await selectAudioCodec(Boolean(window.electronAPI?.dataRecruitEncodeAudio))
 			: null;
@@ -284,6 +288,7 @@ export async function encodeScroll(
 							at,
 						);
 				}
+				mixMusic(buffer, second, music);
 				for (const sample of AudioSample.fromAudioBuffer(buffer, second)) {
 					try {
 						await audioSource.add(sample);

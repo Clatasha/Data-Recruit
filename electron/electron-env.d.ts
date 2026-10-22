@@ -31,6 +31,7 @@ interface Window {
 			job: string,
 		) => Promise<ArrayBuffer>;
 		dataRecruitCancelBookendAudio?: (job: string) => Promise<void>;
+		dataRecruitPickMusic?: () => Promise<{ name: string; url: string }[]>;
 		dataRecruitPickBookend?: () => Promise<{
 			name: string;
 			url: string;

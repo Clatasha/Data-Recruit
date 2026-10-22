@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("data-recruit:bookend-audio", id, start, duration, job),
 	dataRecruitCancelBookendAudio: (job: string): Promise<void> =>
 		ipcRenderer.invoke("data-recruit:cancel-bookend-audio", job),
+	dataRecruitPickMusic: () => ipcRenderer.invoke("data-recruit:pick-music"),
 	dataRecruitPickBookend: () => ipcRenderer.invoke("data-recruit:pick-bookend"),
 	dataRecruitBookendInfo: (id: string) => ipcRenderer.invoke("data-recruit:bookend-info", id),
 	dataRecruitReadBookend: (id: string, offset: number, length: number) =>

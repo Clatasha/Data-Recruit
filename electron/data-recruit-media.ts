@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 
 const extensions = ["mp4", "webm", "mov", "m4v", "png", "jpg", "jpeg", "webp"];
-const idPattern = /^[a-f0-9-]{36}\.(?:mp4|webm|mov|m4v|png|jpg|jpeg|webp)$/i;
+const audioExtensions = ["mp3", "wav", "m4a", "aac", "ogg", "flac", "opus", "webm", "mp4"];
+const idPattern =
+	/^[a-f0-9-]{36}\.(?:mp4|webm|mov|m4v|png|jpg|jpeg|webp|mp3|wav|m4a|aac|ogg|flac|opus)$/i;
 function mediaPath(id: string) {
 	if (typeof id !== "string" || !idPattern.test(id)) throw new Error("Invalid bookend media ID.");
 	return path.join(app.getPath("userData"), "data-recruit", "media", id);
@@ -44,6 +46,45 @@ export function registerDataRecruitMediaIpc() {
 			kind: ["png", "jpg", "jpeg", "webp"].includes(extension) ? "image" : "video",
 		};
 	});
+	ipcMain.handle("data-recruit:pick-music", async (event) => {
+		const parent = BrowserWindow.fromWebContents(event.sender);
+		const options = {
+			title: "Add music or audio",
+			properties: ["openFile", "multiSelections"] as ("openFile" | "multiSelections")[],
+			filters: [{ name: "Audio", extensions: audioExtensions }],
+		};
+		const picked = parent
+			? await dialog.showOpenDialog(parent, options)
+			: await dialog.showOpenDialog(options);
+		if (picked.canceled) return [];
+		if (picked.filePaths.length > 100) throw new Error("Choose up to 100 audio files at a time.");
+		const result: { name: string; url: string }[] = [];
+		const created: string[] = [];
+		try {
+			for (const source of picked.filePaths) {
+				const extension = path.extname(source).slice(1).toLowerCase();
+				if (!audioExtensions.includes(extension) || !(await fs.stat(source)).isFile())
+					throw new Error("Choose supported audio files.");
+				const id = `${crypto.randomUUID()}.${extension}`,
+					target = mediaPath(id);
+				await fs.mkdir(path.dirname(target), { recursive: true });
+				created.push(target);
+				await fs.copyFile(source, target);
+				result.push({ name: path.basename(source), url: `data-recruit-media:${id}` });
+			}
+			return result;
+		} catch (error) {
+			await Promise.all(
+				created.map((target) =>
+					fs.rm(target, { force: true }).catch(() => {
+						/* Keep the original import error. */
+					}),
+				),
+			);
+			throw error;
+		}
+	});
+
 	const audioJobs = new Map<string, AbortController>();
 	ipcMain.handle(
 		"data-recruit:bookend-audio",
@@ -86,7 +127,7 @@ export function registerDataRecruitMediaIpc() {
 			if (!stat.isFile()) throw new Error("Not a file");
 			return { size: stat.size, url: pathToFileURL(target).href };
 		} catch {
-			throw new Error("Intro/outro media is missing on this computer. Add the file again.");
+			throw new Error("Imported media is missing on this computer. Add the file again.");
 		}
 	});
 	ipcMain.handle(

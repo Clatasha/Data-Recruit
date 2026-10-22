@@ -110,6 +110,7 @@ export function renderCard(
 	image: CardImage | undefined,
 	template: CardTemplate,
 	settings: ScrollSettings,
+	badgeValue?: number,
 ): HTMLCanvasElement {
 	const { cardWidth, height } = geometry(settings.format);
 	const canvas = document.createElement("canvas");
@@ -173,6 +174,30 @@ export function renderCard(
 			template,
 		);
 	});
+	if (template.badge?.enabled && badgeValue !== undefined) {
+		const badge = template.badge,
+			diameter = width * badge.size;
+		const margin = width * 0.025;
+		ctx.save();
+		ctx.beginPath();
+		ctx.arc(width - margin - diameter / 2, margin + diameter / 2, diameter / 2, 0, Math.PI * 2);
+		ctx.fillStyle = badge.color;
+		ctx.fill();
+		textBox(
+			ctx,
+			String(badgeValue),
+			width - margin - diameter * 0.9,
+			margin + diameter * 0.1,
+			diameter * 0.8,
+			diameter * 0.8,
+			diameter * 0.58,
+			badge.textColor,
+			1,
+			{ ...template, textScale: 1, outline: 0 },
+		);
+		ctx.restore();
+	}
+
 	return canvas;
 }
 export function drawScroll(

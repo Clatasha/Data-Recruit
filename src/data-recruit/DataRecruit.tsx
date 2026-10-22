@@ -8,8 +8,11 @@ import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { type Bookend, loadBookend, loadImage, pauseBookends, serializeBookend } from "./bookends";
 import { encodeScroll } from "./export";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
+import { MusicTimeline } from "./MusicTimeline";
 import {
+	badgeNumber,
 	type CardTemplate,
+	DEFAULT_BADGE,
 	FACTS_TEXT,
 	geometry,
 	imageNumber,
@@ -19,6 +22,8 @@ import {
 	TEMPLATES,
 	validateCards,
 } from "./model";
+import { loadMusic, type MusicClip, musicSchema, serializeMusic } from "./music";
+import { MusicPreview } from "./musicPreview";
 import { useProjectHistory } from "./projectHistory";
 import { recovery } from "./recovery";
 import { type CardImage, renderCard } from "./render";
@@ -41,7 +46,16 @@ const rowSchema = z.object({
 	color: z.string().regex(/^#[0-9a-f]{6}$/i),
 	valueColor: z.string().regex(/^#[0-9a-f]{6}$/i),
 });
+const badgeSchema = z.object({
+	enabled: z.boolean(),
+	direction: z.enum(["up", "down"]),
+	start: z.number().int().min(-9999).max(9999).optional(),
+	size: z.number().min(0.08).max(0.3),
+	color: z.string().regex(/^#[0-9a-f]{6}$/i),
+	textColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+});
 const templateSchema = z.object({
+	badge: badgeSchema.optional(),
 	id: z.string(),
 	name: z.string().min(1),
 	titleColor: z.string().regex(/^#[0-9a-f]{6}$/i),
@@ -83,6 +97,7 @@ const bookendSchema = z
 	.nullable();
 const recipeSchema = z.object({
 	version: z.literal(1),
+	music: z.array(musicSchema).max(100).default([]),
 	order: z.array(z.number().int().positive()).default([]),
 	exportOptions: z
 		.object({
@@ -141,15 +156,18 @@ export default function DataRecruit({
 		intro: null as Bookend | null,
 		outro: null as Bookend | null,
 		order: [] as number[],
+		music: [] as MusicClip[],
 		exportOptions: { ...DEFAULT_EXPORT },
 	});
 	const history = useProjectHistory(emptyProject());
-	const { text, template, images, settings, intro, outro, order, exportOptions } = history.present;
+	const { text, template, images, settings, intro, outro, order, exportOptions, music } =
+		history.present;
 	const setter =
 		<K extends keyof typeof history.present>(key: K) =>
 		(value: SetStateAction<(typeof history.present)[K]>) =>
 			history.update(key, value);
 	const setText = setter("text"),
+		setMusic = setter("music"),
 		setTemplate = setter("template"),
 		setImages = setter("images"),
 		setSettings = setter("settings"),
@@ -157,6 +175,25 @@ export default function DataRecruit({
 		setOutro = setter("outro"),
 		setOrder = setter("order"),
 		setExportOptions = setter("exportOptions");
+	const [audioLoading, setAudioLoading] = useState(false);
+	const audioImport = useRef<AbortController | null>(null);
+	const [previewVolume, setPreviewVolume] = useState(() => {
+		try {
+			const saved = localStorage.getItem("data-recruit-preview-volume");
+			const value = saved === null ? 0.5 : Number(saved);
+			return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.5;
+		} catch {
+			return 0.5;
+		}
+	});
+	const musicPreview = useRef<MusicPreview | null>(null);
+	useEffect(
+		() => () => {
+			musicPreview.current?.dispose();
+			audioImport.current?.abort();
+		},
+		[],
+	);
 	const [newProjectPrompt, setNewProjectPrompt] = useState(false);
 	const projectGeneration = useRef(0);
 	const [draft, setDraft] = useState<string | null>(null);
@@ -259,12 +296,13 @@ export default function DataRecruit({
 	);
 	const rendered = useMemo(
 		() =>
-			parsed.cards.map((card) =>
+			parsed.cards.map((card, index) =>
 				renderCard(
 					card,
 					images.find((image) => image.id === card.id),
 					template,
 					settings,
+					template.badge ? badgeNumber(template.badge, index, parsed.cards.length) : undefined,
 				),
 			),
 		[parsed.cards, images, template, settings],
@@ -300,7 +338,7 @@ export default function DataRecruit({
 					)
 						item.media.currentTime = target;
 					item.media.muted = item.muted || !advancing;
-					item.media.volume = item.volume ?? 1;
+					item.media.volume = (item.volume ?? 1) * previewVolume;
 					if (playing && !busy && advancing && item.media.paused)
 						void item.media.play().catch(() => {
 							setPlaying(false);
@@ -310,9 +348,11 @@ export default function DataRecruit({
 				} else item.media.pause();
 			}
 
+			musicPreview.current ??= new MusicPreview();
+			musicPreview.current.sync(music, at, playing && !busy, previewVolume);
 			drawSequence(ctx, rendered, settings, at, intro, outro);
 		},
-		[rendered, settings, intro, outro, playing, busy, exportOptions.fps],
+		[rendered, settings, intro, outro, playing, busy, exportOptions.fps, music, previewVolume],
 	);
 	const livePosition = usePreviewClock({
 		position: time,
@@ -429,8 +469,79 @@ export default function DataRecruit({
 			if (generation === projectGeneration.current) fail(error);
 		}
 	}
+	async function importMusic(sources: { name: string; url: string }[], at: number) {
+		if (audioImport.current || !sources.length) return;
+		if (music.length + sources.length > 100) {
+			setMessage("Use up to 100 audio clips per project.");
+			return;
+		}
+		const generation = projectGeneration.current;
+		const controller = new AbortController();
+		audioImport.current = controller;
+		setAudioLoading(true);
+		setPlaying(false);
+		try {
+			const added: MusicClip[] = [];
+			let cursor = Math.max(0, Math.min(total, at));
+			for (const source of sources) {
+				setMessage(`Loading audio ${added.length + 1}/${sources.length}: ${source.name}…`);
+				const clip = await loadMusic(source.name, source.url, controller.signal);
+				controller.signal.throwIfAborted();
+				clip.at = Math.min(cursor, 1199.9);
+				clip.duration = Math.min(clip.duration, 1200 - clip.at);
+				added.push(clip);
+				cursor += clip.duration;
+			}
+			if (generation !== projectGeneration.current) return;
+			history.checkpoint();
+			setMusic((existing) => [...existing, ...added]);
+			setMessage(
+				`${added.length} audio clips added. Select a waveform to edit volume, trim and fades.`,
+			);
+		} catch (error) {
+			if (generation === projectGeneration.current) fail(error);
+		} finally {
+			if (audioImport.current === controller) {
+				audioImport.current = null;
+				setAudioLoading(false);
+			}
+		}
+	}
+	async function addMusicFiles(files: File[], at: number) {
+		const generation = projectGeneration.current;
+		try {
+			if (files.length + music.length > 100)
+				throw new Error("Use up to 100 audio clips per project.");
+			const sources = [];
+			for (const file of files) {
+				if (
+					!file.type.startsWith("audio/") &&
+					!/\.(mp3|wav|m4a|aac|ogg|flac|opus|webm|mp4)$/i.test(file.name)
+				)
+					throw new Error(`Choose an audio file: ${file.name}`);
+				sources.push({
+					name: file.name,
+					url: (await readUrl(file)).replace(/^data:[^;,]*/, "data:audio/octet-stream"),
+				});
+			}
+			if (generation === projectGeneration.current) await importMusic(sources, at);
+		} catch (error) {
+			if (generation === projectGeneration.current) fail(error);
+		}
+	}
+	async function pickMusic(at: number) {
+		const generation = projectGeneration.current;
+		try {
+			const sources = await window.electronAPI?.dataRecruitPickMusic?.();
+			if (sources && generation === projectGeneration.current) await importMusic(sources, at);
+		} catch (error) {
+			if (generation === projectGeneration.current) fail(error);
+		}
+	}
 	function newProject() {
 		projectGeneration.current++;
+		audioImport.current?.abort();
+		musicPreview.current?.stop();
 		pauseBookends(intro, outro);
 		const next = history.reset(emptyProject());
 		setSavedState(next);
@@ -449,6 +560,7 @@ export default function DataRecruit({
 	function recipe() {
 		return {
 			version: 1,
+			music: music.map(serializeMusic),
 			order,
 			exportOptions,
 			text,
@@ -460,8 +572,10 @@ export default function DataRecruit({
 		};
 	}
 	async function openRecipe(file: File | undefined, source?: string) {
-		const generation = projectGeneration.current;
 		if (!file && !source) return;
+		const generation = ++projectGeneration.current;
+		audioImport.current?.abort();
+		setPlaying(false);
 		try {
 			const value = recipeSchema.parse(JSON.parse(source ?? (await file!.text())));
 			if (new Set(value.images.map((image) => image.id)).size !== value.images.length)
@@ -485,6 +599,26 @@ export default function DataRecruit({
 							transitionSeconds: item.transitionSeconds,
 						}))
 					: null;
+			const restoredMusic: MusicClip[] = [];
+			const sources = new Map<string, MusicClip>();
+			for (const clip of value.music) {
+				let source = sources.get(clip.url);
+				if (!source) {
+					source = await loadMusic(clip.name, clip.url);
+					sources.set(clip.url, source);
+				}
+				if (
+					clip.start >= Math.min(source.buffer.duration, clip.end ?? source.buffer.duration) ||
+					(!clip.loop &&
+						clip.start + clip.duration >
+							Math.min(source.buffer.duration, clip.end ?? source.buffer.duration) + 0.05) ||
+					clip.at + clip.duration > 1200.05
+				)
+					throw new Error(`Invalid audio trim: ${clip.name}`);
+				restoredMusic.push({ ...source, ...clip });
+			}
+			if (new Set(restoredMusic.map((clip) => clip.id)).size !== restoredMusic.length)
+				throw new Error("Project contains duplicate audio clip IDs.");
 			const [first, last] = await Promise.all([
 				restoreBookend(value.intro),
 				restoreBookend(value.outro),
@@ -493,6 +627,7 @@ export default function DataRecruit({
 			const next = history.replace({
 				...history.present,
 				order: value.order,
+				music: restoredMusic,
 				exportOptions: value.exportOptions,
 				text: value.text,
 				template: value.template,
@@ -528,7 +663,7 @@ export default function DataRecruit({
 		setMessage("Timeline built. Preview the scroll, export MP4, or continue in the editor.");
 	}
 	async function exportVideo(editor = false) {
-		if (busy || !ensureReady()) return;
+		if (busy || audioLoading || !ensureReady()) return;
 		setBusy(true);
 		setMessage("Preparing MP4 video and audio…");
 		setPlaying(false);
@@ -545,6 +680,7 @@ export default function DataRecruit({
 					setProgress,
 					controller.signal,
 					exportOptions,
+					music,
 				),
 				editor ? onPrepareEditor?.() : Promise.resolve(),
 			]);
@@ -558,7 +694,7 @@ export default function DataRecruit({
 				const store = () => useProjectStore.getState();
 				await store().createProject(`Data Recruit · ${template.name}`);
 				const asset = await store().addAsset(path, "Scrolling cards");
-				const audio = hasAudio ? await store().addAudioAsset(path, "Intro and outro audio") : null;
+				const audio = hasAudio ? await store().addAudioAsset(path, "Builder audio mix") : null;
 				if (hasAudio && !audio)
 					throw new Error("Could not add the intro/outro audio to the editor.");
 				const doc = store().document;
@@ -666,7 +802,7 @@ export default function DataRecruit({
 				<nav>
 					<button
 						type="button"
-						disabled={busy}
+						disabled={busy || audioLoading}
 						onClick={() => (dirty ? setNewProjectPrompt(true) : newProject())}
 					>
 						New project
@@ -709,7 +845,7 @@ export default function DataRecruit({
 					<button
 						className="dr-primary"
 						type="button"
-						disabled={busy}
+						disabled={busy || audioLoading}
 						onClick={() => void exportVideo()}
 					>
 						Export MP4 ↗
@@ -865,6 +1001,120 @@ export default function DataRecruit({
 								▯ 9:16 Shorts
 							</button>
 						</div>
+						<details>
+							<summary>Card number badges</summary>
+							<label>
+								<input
+									type="checkbox"
+									checked={template.badge?.enabled ?? false}
+									onChange={(event) =>
+										setTemplate({
+											...template,
+											badge: { ...DEFAULT_BADGE, ...template.badge, enabled: event.target.checked },
+										})
+									}
+								/>{" "}
+								Show numbered circles
+							</label>
+							{template.badge?.enabled && (
+								<>
+									<label>
+										Number order
+										<select
+											aria-label="Badge number order"
+											value={template.badge.direction}
+											onChange={(event) =>
+												setTemplate({
+													...template,
+													badge: {
+														...template.badge!,
+														direction: event.target.value as "up" | "down",
+														start: undefined,
+													},
+												})
+											}
+										>
+											<option value="up">Count up · 1, 2, 3…</option>
+											<option value="down">
+												Count down · {parsed.cards.length}, {parsed.cards.length - 1}, …
+											</option>
+										</select>
+									</label>
+									<label>
+										Starting number
+										<input
+											aria-label="Badge starting number"
+											type="number"
+											min="-9999"
+											max="9999"
+											placeholder="Auto"
+											value={template.badge.start ?? ""}
+											onChange={(event) =>
+												setTemplate({
+													...template,
+													badge: {
+														...template.badge!,
+														start:
+															event.target.value === ""
+																? undefined
+																: Math.max(
+																		-9999,
+																		Math.min(9999, Math.trunc(Number(event.target.value))),
+																	),
+													},
+												})
+											}
+										/>
+									</label>
+									<label>
+										Circle size
+										<input
+											type="range"
+											min="0.08"
+											max="0.3"
+											step="0.01"
+											value={template.badge.size}
+											onChange={(event) =>
+												setTemplate({
+													...template,
+													badge: { ...template.badge!, size: Number(event.target.value) },
+												})
+											}
+										/>
+									</label>
+									<label>
+										Circle color
+										<input
+											type="color"
+											value={template.badge.color}
+											onChange={(event) =>
+												setTemplate({
+													...template,
+													badge: { ...template.badge!, color: event.target.value },
+												})
+											}
+										/>
+									</label>
+									<label>
+										Number color
+										<input
+											type="color"
+											value={template.badge.textColor}
+											onChange={(event) =>
+												setTemplate({
+													...template,
+													badge: { ...template.badge!, textColor: event.target.value },
+												})
+											}
+										/>
+									</label>
+									<small>
+										Numbers follow timeline order and update when cards move. Leave the start empty
+										for automatic counting.
+									</small>
+								</>
+							)}
+						</details>
 						<details>
 							<summary>Customize template</summary>
 							<label>
@@ -1156,7 +1406,7 @@ export default function DataRecruit({
 					<div className="dr-player">
 						<button
 							type="button"
-							disabled={busy}
+							disabled={busy || audioLoading}
 							onClick={() => {
 								if (playing) {
 									setTime(livePosition.current);
@@ -1174,7 +1424,7 @@ export default function DataRecruit({
 						</span>
 						<button
 							type="button"
-							disabled={busy}
+							disabled={busy || audioLoading}
 							onClick={() => {
 								setPlaying(false);
 								setTime(0);
@@ -1183,6 +1433,30 @@ export default function DataRecruit({
 							↺ Start
 						</button>
 					</div>
+					<label
+						className="dr-preview-volume"
+						title="Listening volume only. Does not change exported audio."
+					>
+						Preview volume{" "}
+						<input
+							aria-label="Preview volume"
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={previewVolume}
+							onChange={(event) => {
+								const value = Number(event.target.value);
+								setPreviewVolume(value);
+								try {
+									localStorage.setItem("data-recruit-preview-volume", String(value));
+								} catch {
+									/* Session setting still works. */
+								}
+							}}
+						/>{" "}
+						{Math.round(previewVolume * 100)}%<small>Listening only · export unchanged</small>
+					</label>
 					<div className="dr-timeline">
 						<div className="dr-section-title">
 							{built ? "YOUR TIMELINE" : "TIMELINE PREVIEW"}
@@ -1249,6 +1523,24 @@ export default function DataRecruit({
 							video clip.
 						</small>
 					</div>
+					<MusicTimeline
+						clips={music}
+						total={total}
+						time={time}
+						busy={busy || audioLoading}
+						onChange={(clips) => {
+							history.checkpoint();
+							setMusic(clips);
+						}}
+						onFiles={(files, at) => void addMusicFiles(files, at)}
+						onPick={
+							window.electronAPI?.dataRecruitPickMusic ? (at) => void pickMusic(at) : undefined
+						}
+						onSeek={(at) => {
+							setPlaying(false);
+							setTime(at);
+						}}
+					/>
 					<div className="dr-status" role="status">
 						{message}
 						<small className="dr-recovery-status">
@@ -1713,7 +2005,12 @@ export default function DataRecruit({
 								? `${problems.length} item${problems.length === 1 ? "" : "s"} to check`
 								: "✓ All entries matched"}
 						</span>
-						<button className="dr-primary" type="button" disabled={busy} onClick={build}>
+						<button
+							className="dr-primary"
+							type="button"
+							disabled={busy || audioLoading}
+							onClick={build}
+						>
 							✦ Build Timeline
 						</button>
 						<button

@@ -8,7 +8,29 @@ export interface TemplateRow {
 	color: string;
 	valueColor: string;
 }
+export interface NumberBadge {
+	enabled: boolean;
+	direction: "up" | "down";
+	start?: number;
+	size: number;
+	color: string;
+	textColor: string;
+}
+export const DEFAULT_BADGE: NumberBadge = {
+	enabled: false,
+	direction: "up",
+	size: 0.14,
+	color: "#131a26",
+	textColor: "#ffffff",
+};
+export function badgeNumber(badge: NumberBadge, index: number, count: number) {
+	return (
+		(badge.start ?? (badge.direction === "down" ? count : 1)) +
+		(badge.direction === "down" ? -index : index)
+	);
+}
 export interface CardTemplate {
+	badge?: NumberBadge;
 	id: string;
 	name: string;
 	titleColor: string;

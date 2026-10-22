@@ -103,3 +103,22 @@ it("restricts decode cancellation to the requesting window and removes listeners
 		handler("bookend-audio")({ sender }, id, 0, 700, "bookend-test-job"),
 	).rejects.toThrow("Invalid");
 });
+
+it("imports multiple music tracks as retained copies and cleans a failed batch", async () => {
+	mocks.picker.mockResolvedValue({
+		canceled: false,
+		filePaths: ["/selected/a.mp3", "/selected/b.wav"],
+	});
+	mocks.stat.mockResolvedValue({ isFile: () => true });
+	const result = await handler("pick-music")({ sender: {} });
+	expect(result).toHaveLength(2);
+	expect(result[0]).toMatchObject({
+		name: "a.mp3",
+		url: expect.stringMatching(/^data-recruit-media:.*\.mp3$/),
+	});
+	expect(mocks.copy).toHaveBeenCalledTimes(2);
+	mocks.copy.mockRejectedValueOnce(new Error("disk full"));
+	mocks.rm.mockResolvedValue(undefined);
+	await expect(handler("pick-music")({ sender: {} })).rejects.toThrow("disk full");
+	expect(mocks.rm).toHaveBeenCalled();
+});

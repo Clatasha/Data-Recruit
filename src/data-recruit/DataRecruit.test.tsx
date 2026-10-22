@@ -4,13 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadBookend } from "./bookends";
 import DataRecruit from "./DataRecruit";
 import { encodeScroll } from "./export";
+import { loadMusic } from "./music";
+import { renderCard } from "./render";
 
 vi.mock("./export", () => ({
 	encodeScroll: vi.fn(async () => ({ bytes: new ArrayBuffer(8), hasAudio: false })),
 }));
 vi.mock("./sequence", () => ({ drawSequence: vi.fn() }));
 vi.mock("./render", () => ({
-	renderCard: () => document.createElement("canvas"),
+	renderCard: vi.fn(() => document.createElement("canvas")),
 	drawImageFit: vi.fn(),
 	drawScroll: vi.fn(),
 }));
@@ -23,6 +25,26 @@ vi.mock("./bookends", async (original) => ({
 		kind: "image" as const,
 		duration: 3,
 		media: new Image(),
+	})),
+}));
+vi.mock("./music", async (original) => ({
+	...(await original<typeof import("./music")>()),
+	loadMusic: vi.fn(async (name: string, url: string) => ({
+		id: crypto.randomUUID(),
+		name,
+		url,
+		at: 0,
+		start: 0,
+		end: 2,
+		duration: 2,
+		volume: 1,
+		muted: false,
+		loop: false,
+		loopOffset: 0,
+		fadeIn: 0,
+		fadeOut: 0,
+		peaks: [0.5],
+		buffer: { duration: 2, numberOfChannels: 2, sampleRate: 48000 },
 	})),
 }));
 vi.mock("@/lib/ai-edition/store/projectStore", () => ({ useProjectStore: { getState: vi.fn() } }));
@@ -239,4 +261,60 @@ it("imports desktop compilations by managed reference without reading the comple
 		"video",
 	);
 	expect(read).not.toHaveBeenCalled();
+});
+
+it("renumbers visible badges in timeline order and saves countdown styling with a template", async () => {
+	await setup();
+	fireEvent.click(screen.getByRole("button", { name: "Duplicate card" }));
+	fireEvent.click(screen.getByLabelText("Show numbered circles"));
+	fireEvent.change(screen.getByLabelText("Badge number order"), { target: { value: "down" } });
+	let calls = vi.mocked(renderCard).mock.calls.slice(-2);
+	expect(calls.map((call) => call[4])).toEqual([2, 1]);
+	fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
+	calls = vi.mocked(renderCard).mock.calls.slice(-2);
+	expect(calls.map((call) => call[0].id)).toEqual([2, 1]);
+	expect(calls.map((call) => call[4])).toEqual([2, 1]);
+	fireEvent.change(screen.getByLabelText("Badge starting number"), { target: { value: "10" } });
+	expect(
+		vi
+			.mocked(renderCard)
+			.mock.calls.slice(-2)
+			.map((call) => call[4]),
+	).toEqual([10, 9]);
+	fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "Countdown" } });
+	fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+	expect(JSON.parse(localStorage.getItem("data-recruit-templates")!)[0].badge).toMatchObject({
+		direction: "down",
+		start: 10,
+	});
+});
+it("adds multiple music clips, edits and splits them, and exports clip levels independently of preview volume", async () => {
+	await setup();
+	await act(async () =>
+		fireEvent.change(screen.getByLabelText("Add audio files"), {
+			target: {
+				files: [
+					new File(["audio"], "first.wav", { type: "audio/wav" }),
+					new File(["audio"], "second.wav", { type: "audio/wav" }),
+				],
+			},
+		}),
+	);
+	await waitFor(() =>
+		expect(screen.getAllByRole("button", { name: /Audio clip/ })).toHaveLength(2),
+	);
+	expect(loadMusic).toHaveBeenCalledTimes(2);
+	fireEvent.click(screen.getByRole("button", { name: "Audio clip first.wav" }));
+	fireEvent.change(screen.getByLabelText("Audio clip volume"), { target: { value: "0.3" } });
+	fireEvent.change(screen.getByLabelText("Preview volume"), { target: { value: "0" } });
+	fireEvent.change(screen.getByLabelText("Timeline position"), { target: { value: "1" } });
+	fireEvent.click(screen.getByRole("button", { name: "Split at playhead" }));
+	expect(screen.getAllByRole("button", { name: /Audio clip/ })).toHaveLength(3);
+	fireEvent.click(screen.getByRole("button", { name: /Export MP4/ }));
+	await waitFor(() => expect(encodeScroll).toHaveBeenCalledOnce());
+	const clips = vi.mocked(encodeScroll).mock.calls[0][7]!;
+	expect(clips).toHaveLength(3);
+	expect(clips.map((clip) => clip.volume)).toEqual([0.3, 0.3, 1]);
+	expect(clips.map((clip) => clip.at)).toEqual([0, 1, 2]);
+	expect(localStorage.getItem("data-recruit-preview-volume")).toBe("0");
 });

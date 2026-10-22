@@ -63,6 +63,20 @@ try {
 } finally {
 	await largeHandle.close();
 }
+const musicFile = path.join(output, "music.wav");
+execFileSync(ffmpeg, [
+	"-v",
+	"error",
+	"-y",
+	"-f",
+	"lavfi",
+	"-i",
+	"sine=frequency=330:sample_rate=48000:duration=2",
+	"-c:a",
+	"pcm_s16le",
+	musicFile,
+]);
+
 const application = await electron.launch({
 	executablePath: path.resolve(process.argv[2]),
 	env: { ...process.env, OPENSCREEN_DISABLE_CONTENT_PROTECTION: "1" },
@@ -97,7 +111,7 @@ try {
 			return canvas.toDataURL("image/png").split(",")[1];
 		}),
 	);
-	await page.locator("input[multiple]").setInputFiles(
+	await page.locator('input[multiple][accept^="image/"]').setInputFiles(
 		files.map((content, index) => ({
 			name: `${index + 1}.png`,
 			mimeType: "image/png",
@@ -313,14 +327,151 @@ try {
 		"Outro entrance must hold the first frame without starting its audio",
 	);
 	assert(rms(9.2, 9.8) > 0.02, "Outro audio must start after the scrolling section");
+	// Native multi-import, a trimmed loop, and export with listening volume at zero.
+	await page.getByText("Card number badges", { exact: true }).click();
+	await page.getByLabel("Show numbered circles").check();
+	await page.getByLabel("Badge number order").selectOption("down");
+	await page.getByLabel("Badge starting number").fill("10");
+	await page.getByLabel("Circle color", { exact: true }).evaluate((input) => {
+		Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "#ff00ff");
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+	});
+	await page.getByRole("slider", { name: "Timeline position" }).fill("0");
+	await application.evaluate(({ dialog }, selected) => {
+		dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selected, selected] });
+	}, musicFile);
+	await page.getByRole("button", { name: "Add audio", exact: false }).click();
+	await page
+		.getByRole("status")
+		.filter({ hasText: "2 audio clips added" })
+		.waitFor({ timeout: 60_000 });
+	assert.equal(
+		await page.getByRole("button", { name: "Audio clip music.wav", exact: true }).count(),
+		2,
+	);
+	await fs.unlink(musicFile);
+	await page.getByRole("button", { name: "Audio clip music.wav", exact: true }).first().click();
+	await page.getByLabel("Source start", { exact: true }).fill("0.25");
+	await page.getByLabel("Source end", { exact: true }).fill("1.75");
+	await page.getByLabel("Loop to fill").check();
+	await page.getByLabel("Audio clip volume").fill("0.5");
+	await page.getByLabel("Fade in", { exact: true }).fill("0.2");
+	await page.getByLabel("Fade out", { exact: true }).fill("0.2");
+	await page.getByRole("button", { name: "Audio clip music.wav", exact: true }).nth(1).click();
+	await page.getByLabel("Mute clip").check();
+	await page.getByRole("slider", { name: "Preview volume", exact: true }).fill("0");
+	await page.getByRole("slider", { name: "Timeline position" }).fill("5");
+	await page.waitForFunction(() => {
+		const pixel = document
+			.querySelector(".dr-stage canvas")
+			.getContext("2d")
+			.getImageData(890, 100, 1, 1).data;
+		return pixel[0] > 230 && pixel[1] < 30 && pixel[2] > 230;
+	});
+	await page.screenshot({ path: path.join(output, "music-and-countdown.png") });
+	// Persist source trims, loops, levels and numbering, without persisting listening volume.
+	const previousSave = await fs.readFile(savedProject, "utf8");
+	await page.getByRole("button", { name: "Save project", exact: true }).click();
+	let musicRecipe;
+	for (let attempt = 0; attempt < 100; attempt++) {
+		try {
+			const candidate = await fs.readFile(savedProject, "utf8");
+			if (candidate !== previousSave) {
+				const value = JSON.parse(candidate);
+				if (value.music?.length === 2) {
+					musicRecipe = value;
+					break;
+				}
+			}
+		} catch {
+			/* Download in progress. */
+		}
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+	assert(musicRecipe, "Music project download must finish");
+	assert.equal(musicRecipe.music[0].start, 0.25);
+	assert.equal(musicRecipe.music[0].end, 1.75);
+	assert.equal(musicRecipe.music[0].volume, 0.5);
+	assert.equal(musicRecipe.music[0].loop, true);
+	assert.equal(musicRecipe.template.badge.start, 10);
+	assert(!("previewVolume" in musicRecipe));
+	await page.locator('input[accept=".json"]').setInputFiles(savedProject);
+	await page.getByRole("status").filter({ hasText: "Project opened" }).waitFor({ timeout: 60_000 });
+	assert.equal(await page.getByRole("button", { name: /Audio clip/ }).count(), 2);
+	await page.getByRole("button", { name: "Export MP4" }).click();
+	await page.getByRole("status").filter({ hasText: "MP4 ready" }).waitFor({ timeout: 120_000 });
+	const badgePixel = execFileSync(ffmpeg, [
+		"-v",
+		"error",
+		"-ss",
+		"5",
+		"-i",
+		path.join(output, "Data-Recruit.mp4"),
+		"-frames:v",
+		"1",
+		"-vf",
+		"crop=2:2:890:100",
+		"-pix_fmt",
+		"rgb24",
+		"-f",
+		"rawvideo",
+		"pipe:1",
+	]);
+	assert(
+		badgePixel[0] > 220 && badgePixel[1] < 40 && badgePixel[2] > 220,
+		"Export must include the styled number badge",
+	);
+	const musicPcm = execFileSync(ffmpeg, [
+		"-v",
+		"error",
+		"-ss",
+		"3",
+		"-i",
+		path.join(output, "Data-Recruit.mp4"),
+		"-t",
+		"1",
+		"-map",
+		"0:a:0",
+		"-ar",
+		"48000",
+		"-ac",
+		"1",
+		"-f",
+		"s16le",
+		"pipe:1",
+	]);
+	let musicEnergy = 0;
+	for (let index = 0; index < musicPcm.length; index += 2)
+		musicEnergy += (musicPcm.readInt16LE(index) / 32768) ** 2;
+	const musicRms = Math.sqrt(musicEnergy / (musicPcm.length / 2));
+	assert(
+		musicRms > 0.03 && musicRms < 0.06,
+		`Music must retain its clip volume with preview muted: ${musicRms}`,
+	);
+	// Browser drop path uses File bytes, including files without a supplied MIME type.
+	const musicBytes = await fs.readFile(path.join(output, "outro.webm"));
+	await page
+		.getByRole("region", { name: "Music timeline" })
+		.locator(".dr-audio-lanes")
+		.evaluate((element, bytes) => {
+			const transfer = new DataTransfer();
+			transfer.items.add(new File([Uint8Array.from(bytes)], "drop.webm"));
+			element.dispatchEvent(
+				new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }),
+			);
+		}, Array.from(musicBytes));
+	await page
+		.getByRole("status")
+		.filter({ hasText: "1 audio clips added" })
+		.waitFor({ timeout: 60_000 });
+	await page.getByRole("button", { name: "Audio clip drop.webm", exact: true }).click();
+	await page.getByRole("button", { name: "Delete", exact: true }).click();
+
 	await page.getByRole("button", { name: "Continue in Editor" }).click();
 	await page
 		.getByRole("button", { name: "← Return to builder", exact: true })
 		.waitFor({ timeout: 120_000 });
-	await page
-		.getByText("Intro and outro audio", { exact: false })
-		.first()
-		.waitFor({ timeout: 30_000 });
+	await page.getByText("Builder audio mix", { exact: false }).first().waitFor({ timeout: 30_000 });
 	await page.locator(".dr-handoff").waitFor({ state: "hidden", timeout: 120_000 });
 	await page
 		.locator('[data-testid="native-compositor-mount"][data-painted="true"]')
@@ -330,7 +481,7 @@ try {
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor();
 	assert.equal(await page.locator(".dr-images button").count(), 3);
 	// Add a later batch after working with the original three images.
-	await page.locator("input[multiple]").setInputFiles(
+	await page.locator('input[multiple][accept^="image/"]').setInputFiles(
 		Array.from({ length: 97 }, (_, index) => ({
 			name: `${index + 4}.png`,
 			mimeType: "image/png",
@@ -351,7 +502,9 @@ try {
 			return last.top >= list.top && last.bottom <= list.bottom;
 		}),
 	);
-	const addImages = page.locator("label.dr-drop").filter({ has: page.locator("input[multiple]") });
+	const addImages = page
+		.locator("label.dr-drop")
+		.filter({ has: page.locator('input[multiple][accept^="image/"]') });
 	assert.match(await addImages.textContent(), /Add more images/);
 	await addImages.scrollIntoViewIfNeeded();
 	assert(await addImages.isVisible(), "Add more images must remain accessible after scrolling");
@@ -362,6 +515,7 @@ try {
 	await page.getByRole("button", { name: "New project", exact: true }).click();
 	await page.getByRole("button", { name: "Discard and start new", exact: true }).click();
 	assert.equal(await page.locator(".dr-images button").count(), 0);
+	assert.equal(await page.getByRole("button", { name: /Audio clip/ }).count(), 0);
 	assert(await page.getByRole("button", { name: "Undo", exact: true }).isDisabled());
 	assert.deepEqual(errors, []);
 	console.log(

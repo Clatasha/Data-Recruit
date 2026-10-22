@@ -36,7 +36,17 @@ Templates can have 1–6 named rows, each with background and value colors. Adju
 
 **Save project** downloads JSON containing the data, template, card images, crop settings, format, export options, card order and bookend settings. Desktop intro/outro imports are copied into Data Recruit’s media folder and referenced by ID, so large videos are not embedded in the JSON. **Open project** restores them on the same computer; moving projects to another computer requires reimporting the intro/outro media. Existing projects with embedded media remain supported. The builder also autosaves a recovery copy locally and offers to restore it on the next launch. Unsaved changes trigger a close warning. Undo and Redo cover card, template and media edits.
 
-Optional intro/outro slots accept images or videos, with no 100 MB desktop import cap. Large desktop videos are copied on disk, decoded on demand in bounded chunks, and keep working if the original is moved. Audio export decodes only the selected trim. Images have adjustable duration; videos play with their original audio, have start/end trimming, volume and mute controls. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can add music, narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
+Optional intro/outro slots accept images or videos, with no 100 MB desktop import cap. Large desktop videos are copied on disk, decoded on demand in bounded chunks, and keep working if the original is moved. Audio export decodes only the selected trim. Images have adjustable duration; videos play with their original audio, have start/end trimming, volume and mute controls. **Continue in Editor** renders the sequence into a video clip in the inherited editor, where you can make more complex edits with narration, text and other media. **Return to builder** keeps your card setup available during the session. Rebuilds create a new editor project; they do not overwrite earlier edits.
+
+## Number badges and music
+
+Enable **Card number badges** for top-right circles. Choose count up or count down, leave the starting number empty for automatic numbering, or enter your own start. Badge numbers follow the current timeline order rather than image filenames. Size and colors are saved with the template, for landscape and Shorts.
+
+The builder's compact **Music / Audio** timeline accepts multiple files through **＋ Add audio** or file drop. Files selected together are placed consecutively starting at the playhead. Drag waveforms to reposition them; overlapping clips play together. Select a clip to trim its source start/end, change timeline position and duration, set export volume or mute, add fades, loop the trimmed source to fill the video, split at the playhead, duplicate or delete. Audio beyond the video end is trimmed on export. Multiple lanes scroll within the small strip. Clips support Undo/Redo and project recovery.
+
+**Preview volume** controls listening only, including music and intro/outro sound. It remembers your listening preference on this computer and never changes exported audio. Per-clip volume, mute and fades do affect export. The builder mixes music with intro/outro audio for MP4 export and Continue in Editor.
+
+Native audio picker imports are retained on this computer, like intro/outro media; dropped audio is embedded in the project. Audio sources can be up to 20 minutes each. Reopening a project restores the trims, source references, loops and levels. Older projects open with no music and hidden number badges.
 
 ## Testing builds
 
