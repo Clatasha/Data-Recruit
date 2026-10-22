@@ -212,6 +212,15 @@ export default function DataRecruit({ onOpenEditor }: { onOpenEditor?: () => voi
 			return { cards: [], error: String(error instanceof Error ? error.message : error) };
 		}
 	}, [text, order]);
+	// Undoing a duplicate can remove the selected ID while restoring the original card.
+	// Keep the inspector on an existing card instead of hiding its image controls.
+	useEffect(() => {
+		if (selected === null || parsed.error) return;
+		const exists =
+			parsed.cards.some((card) => card.id === selected) ||
+			images.some((image) => image.id === selected);
+		if (!exists) setSelected(parsed.cards[0]?.id ?? images[0]?.id ?? null);
+	}, [selected, parsed, images]);
 	const problems = useMemo(
 		() =>
 			parsed.error

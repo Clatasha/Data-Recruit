@@ -1014,3 +1014,11 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 - Full suite: 4313 tests passed in 336 suites; 8 suites could not load because this workspace has no installed Electron desktop binary. No assertion failures.
 - Branding: builder/editor SVG; runtime PNG, tray and About; Windows ICO, macOS ICNS, Linux PNG sizes and regenerated Windows tile assets. Native close warning has a focused IPC test.
 - Skipped: installed native Windows/macOS visual pass, taskbar/tray/installer appearance and native compositor interaction; native computer control is unavailable here. Windows packaged smoke is queued through the feature branch workflow. This partial pass does not authorize a stable release promotion.
+
+
+### Data Recruit 0.1.2 selection fix — 2026-10-21 — Partial, Linux workspace
+
+- Windows run 39695850675 built the installer, then failed the UI smoke at Crop left / right after undoing a duplicate. The selected ID still referenced the removed duplicate.
+- Fix: reconcile removed selections to an existing card/image after undo. Added regression checks for replacement and both crop controls; desktop smoke now asserts these controls immediately after undo.
+- Passed: 20 focused tests, app/test type checks, changed-file Biome checks. Native Windows/macOS manual pass skipped because native computer control is unavailable. This is not a stable release promotion.
+- Browser regression passed for the exact duplicate → undo → crop → replace sequence, then template/recovery/project roundtrip and export with MP4 and VP8/Opus WebM bookends. Production bundle build passed.

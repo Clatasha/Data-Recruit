@@ -109,6 +109,9 @@ it("duplicates and removes cards while undo restores the image and text together
 	);
 	fireEvent.click(screen.getByRole("button", { name: "Undo" }));
 	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+	expect(screen.getByLabelText("Replace image for card 1")).toBeTruthy();
+	expect(screen.getByLabelText("Crop left / right")).toBeTruthy();
+	expect(screen.getByLabelText("Crop up / down")).toBeTruthy();
 	fireEvent.click(screen.getByRole("button", { name: "Redo" }));
 	fireEvent.click(screen.getByRole("button", { name: "Remove card" }));
 	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);

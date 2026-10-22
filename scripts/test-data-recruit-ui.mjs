@@ -41,8 +41,9 @@ const application = await electron.launch({
 	env: { ...process.env, OPENSCREEN_DISABLE_CONTENT_PROTECTION: "1" },
 	timeout: 60_000,
 });
+let page;
 try {
-	const page = await application.firstWindow();
+	page = await application.firstWindow();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor({ timeout: 60_000 });
@@ -72,6 +73,8 @@ try {
 	assert.equal(await page.locator(".dr-images button").count(), 4);
 	await page.getByRole("button", { name: "Undo", exact: true }).click();
 	assert.equal(await page.locator(".dr-images button").count(), 3);
+	await page.getByLabel("Replace image for card 1").waitFor({ state: "attached" });
+	await page.getByRole("slider", { name: "Crop left / right" }).waitFor();
 	await page.getByRole("button", { name: /Play/ }).click();
 	await page.waitForFunction(
 		() => Number(document.querySelector('[aria-label="Timeline position"]').value) > 0.2,
@@ -186,6 +189,20 @@ try {
 	console.log(
 		"Data Recruit: playback after edits, image replacement, video bookends with timed audio, Save As export, Shorts and editor handoff passed.",
 	);
+} catch (error) {
+	if (page) {
+		console.error(
+			"Current builder status:",
+			await page
+				.getByRole("status")
+				.allTextContents()
+				.catch(() => []),
+		);
+		await page.screenshot({ path: path.join(output, "failure.png"), fullPage: true }).catch(() => {
+			/* Preserve the original failure if the window has closed. */
+		});
+	}
+	throw error;
 } finally {
 	await application.evaluate(({ app }) => app.exit(0));
 }
