@@ -1,7 +1,7 @@
 {
 	"name": "data-recruit",
 	"private": true,
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Data Recruit by Clatasha: template-based scrolling data videos",
 	"homepage": "https://github.com/Clatasha/Data-Recruit",
 	"license": "MIT",

@@ -1,13 +1,12 @@
 import {
-	ALL_FORMATS,
+	AudioBufferSink,
 	AudioSample,
 	AudioSampleSource,
-	BufferSource,
 	BufferTarget,
 	CanvasSink,
 	CanvasSource,
 	canEncodeVideo,
-	Input,
+	type Input,
 	MovOutputFormat,
 	Mp4OutputFormat,
 	Output,
@@ -15,6 +14,7 @@ import {
 import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
+import { copyAudioChunk, openBookendInput } from "./mediaSource";
 import { geometry, type ScrollSettings } from "./model";
 import { drawImageFit } from "./render";
 import { drawSequence } from "./sequence";
@@ -39,9 +39,9 @@ async function prepareVideo(
 	fps: number,
 	visibleStart: number,
 	visibleEnd: number,
+	signal: AbortSignal,
 ): Promise<VideoBookend> {
-	const bytes = await (await fetch(item.url)).arrayBuffer();
-	const input = new Input({ source: new BufferSource(bytes), formats: ALL_FORMATS });
+	const input = await openBookendInput(item.url);
 	try {
 		const track = await input.getPrimaryVideoTrack();
 		if (!track) throw new Error(`No video track in ${item.name}.`);
@@ -54,16 +54,55 @@ async function prepareVideo(
 					Math.max(0, Math.min(item.duration - 1 / fps, frame / fps - offset));
 		}
 		let audio: AudioBuffer | null = null;
-		if (!item.muted && (await input.getPrimaryAudioTrack())) {
-			const context = new OfflineAudioContext(2, 1, 48_000);
-			try {
-				audio = await context.decodeAudioData(bytes.slice(0));
-			} catch {
-				throw new Error(
-					`Could not decode audio in ${item.name}. Convert it to AAC audio, or mute this bookend.`,
-				);
+		const audioTrack = !item.muted ? await input.getPrimaryAudioTrack() : null;
+		if (audioTrack) {
+			audio = new AudioBuffer({
+				numberOfChannels: 2,
+				length: Math.ceil(item.duration * 48_000),
+				sampleRate: 48_000,
+			});
+			if (
+				item.url.startsWith("data-recruit-media:") &&
+				window.electronAPI?.dataRecruitBookendAudio
+			) {
+				const job = crypto.randomUUID();
+				const abort = () => {
+					void window.electronAPI?.dataRecruitCancelBookendAudio?.(job);
+				};
+				signal.throwIfAborted();
+				signal.addEventListener("abort", abort, { once: true });
+				try {
+					const bytes = await window.electronAPI.dataRecruitBookendAudio(
+						item.url.slice("data-recruit-media:".length),
+						item.start ?? 0,
+						item.duration,
+						job,
+					);
+					signal.throwIfAborted();
+					const pcm = new Float32Array(bytes);
+					for (let channel = 0; channel < 2; channel++) {
+						const output = audio.getChannelData(channel);
+						for (let index = 0; index < Math.min(output.length, pcm.length / 2); index++)
+							output[index] = pcm[index * 2 + channel];
+					}
+				} finally {
+					signal.removeEventListener("abort", abort);
+				}
+			} else if (await audioTrack.canDecode()) {
+				const sink = new AudioBufferSink(audioTrack),
+					trimStart = first + (item.start ?? 0);
+				for await (const chunk of sink.buffers(trimStart, trimStart + item.duration)) {
+					if (signal.aborted) throw new Error("Export cancelled.");
+					copyAudioChunk(audio, chunk.buffer, chunk.timestamp, trimStart);
+				}
+			} else {
+				// Compatibility for older projects containing embedded video data.
+				const context = new OfflineAudioContext(2, 1, 48_000);
+				const decoded = await context.decodeAudioData(await (await fetch(item.url)).arrayBuffer());
+				copyAudioChunk(audio, decoded, 0, item.start ?? 0);
 			}
 		}
+
 		return {
 			item,
 			offset,
@@ -120,11 +159,29 @@ export async function encodeScroll(
 	try {
 		if (intro?.kind === "video")
 			videos.push(
-				await prepareVideo(intro, 0, width, height, fps, 0, intro.duration + timing.introExit),
+				await prepareVideo(
+					intro,
+					0,
+					width,
+					height,
+					fps,
+					0,
+					intro.duration + timing.introExit,
+					signal,
+				),
 			);
 		if (outro?.kind === "video")
 			videos.push(
-				await prepareVideo(outro, timing.outroHold, width, height, fps, timing.outroStart, total),
+				await prepareVideo(
+					outro,
+					timing.outroHold,
+					width,
+					height,
+					fps,
+					timing.outroStart,
+					total,
+					signal,
+				),
 			);
 		checkCancelled();
 		const hasAudio = videos.some((video) => video.audio);
@@ -195,11 +252,11 @@ export async function encodeScroll(
 						end = Math.min(
 							second + buffer.duration,
 							video.offset + video.item.duration,
-							video.offset + video.audio.duration - (video.item.start ?? 0),
+							video.offset + video.audio.duration,
 						);
 					if (end <= start) continue;
-					const from = Math.round((start - video.offset + (video.item.start ?? 0)) * 48_000),
-						to = Math.round((end - video.offset + (video.item.start ?? 0)) * 48_000),
+					const from = Math.round((start - video.offset) * 48_000),
+						to = Math.round((end - video.offset) * 48_000),
 						at = Math.round((start - second) * 48_000);
 					for (let channel = 0; channel < 2; channel++)
 						buffer.copyToChannel(

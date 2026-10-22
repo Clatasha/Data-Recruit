@@ -59,6 +59,19 @@ sharedTexture?.setSharedTextureReceiver(async ({ importedSharedTexture }, meta) 
 });
 
 contextBridge.exposeInMainWorld("electronAPI", {
+	dataRecruitBookendAudio: (
+		id: string,
+		start: number,
+		duration: number,
+		job: string,
+	): Promise<ArrayBuffer> =>
+		ipcRenderer.invoke("data-recruit:bookend-audio", id, start, duration, job),
+	dataRecruitCancelBookendAudio: (job: string): Promise<void> =>
+		ipcRenderer.invoke("data-recruit:cancel-bookend-audio", job),
+	dataRecruitPickBookend: () => ipcRenderer.invoke("data-recruit:pick-bookend"),
+	dataRecruitBookendInfo: (id: string) => ipcRenderer.invoke("data-recruit:bookend-info", id),
+	dataRecruitReadBookend: (id: string, offset: number, length: number) =>
+		ipcRenderer.invoke("data-recruit:read-bookend", id, offset, length),
 	dataRecruitEncodeAudio: (bytes: ArrayBuffer, id: string): Promise<ArrayBuffer> =>
 		ipcRenderer.invoke("data-recruit:encode-audio", bytes, id),
 	dataRecruitCancelAudio: (id: string): Promise<void> =>

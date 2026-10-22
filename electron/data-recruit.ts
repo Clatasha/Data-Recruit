@@ -3,9 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { encodeDataRecruitAudio } from "./data-recruit-audio";
+import { registerDataRecruitMediaIpc } from "./data-recruit-media";
 
 /** Generated files are app-owned; the renderer cannot choose an arbitrary write path. */
 export function registerDataRecruitIpc() {
+	registerDataRecruitMediaIpc();
 	const audioJobs = new Map<string, AbortController>();
 	ipcMain.handle("data-recruit:encode-audio", async (event, bytes: ArrayBuffer, id: string) => {
 		if (!(bytes instanceof ArrayBuffer) || bytes.byteLength > 1024 * 1024 * 1024)
@@ -48,7 +50,7 @@ export function registerDataRecruitIpc() {
 					title: "Unsaved Data Recruit project",
 					message: "Close without saving a project file?",
 					detail:
-						"Use Save project to keep a portable copy. Changes since the last recovery save may be lost.",
+						"Use Save project to keep your settings. Imported intro/outro media stays on this computer. Changes since the last recovery save may be lost.",
 					buttons: ["Keep working", "Close without saving"],
 					defaultId: 0,
 					cancelId: 0,

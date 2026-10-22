@@ -34,12 +34,20 @@ export async function loadBookend(
 	start = 0,
 	volume = 1,
 ): Promise<Bookend> {
+	const previewUrl = url.startsWith("data-recruit-media:")
+		? (await window.electronAPI?.dataRecruitBookendInfo?.(url.slice("data-recruit-media:".length)))
+				?.url
+		: url;
+	if (!previewUrl)
+		throw new Error(
+			"Open this project in Data Recruit on the computer where its media was imported.",
+		);
 	if (kind === "image")
 		return {
 			kind,
 			name,
 			url,
-			media: await loadImage(url),
+			media: await loadImage(previewUrl),
 			duration: Math.max(0.1, Math.min(30, duration ?? 3)),
 		};
 	const media = document.createElement("video");
@@ -62,7 +70,7 @@ export async function loadBookend(
 				: finish(new Error("This video has no readable duration."));
 		media.onerror = () =>
 			finish(new Error(`Cannot play ${name}. Try an MP4 with H.264 video and AAC audio.`));
-		media.src = url;
+		media.src = previewUrl;
 	});
 	start = Math.max(0, Math.min(media.duration - 0.1, start));
 	return {

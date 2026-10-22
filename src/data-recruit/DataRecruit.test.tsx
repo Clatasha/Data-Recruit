@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadBookend } from "./bookends";
 import DataRecruit from "./DataRecruit";
 import { encodeScroll } from "./export";
 
@@ -218,4 +219,24 @@ it("offers squeeze for intro and ease in for outro with separate effect choices"
 	expect(screen.queryByLabelText("intro transition seconds")).toBeNull();
 	fireEvent.change(outro, { target: { value: "ease" } });
 	expect(screen.getByLabelText("outro transition seconds")).toBeTruthy();
+});
+
+it("imports desktop compilations by managed reference without reading the complete file into the project", async () => {
+	const pick = vi.fn(async () => ({
+		name: "Large compilation.mp4",
+		kind: "video" as const,
+		url: "data-recruit-media:12345678-1234-1234-1234-123456789abc.mp4",
+	}));
+	window.electronAPI.dataRecruitPickBookend = pick;
+	const read = vi.spyOn(FileReader.prototype, "readAsDataURL");
+	render(<DataRecruit />);
+	fireEvent.click(screen.getByRole("button", { name: "Choose intro image or video" }));
+	await screen.findByLabelText("intro transition");
+	expect(pick).toHaveBeenCalledOnce();
+	expect(loadBookend).toHaveBeenCalledWith(
+		"Large compilation.mp4",
+		"data-recruit-media:12345678-1234-1234-1234-123456789abc.mp4",
+		"video",
+	);
+	expect(read).not.toHaveBeenCalled();
 });

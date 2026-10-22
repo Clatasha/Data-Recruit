@@ -36,6 +36,33 @@ for (const [name, color, tone] of [
 		path.join(output, `${name}.webm`),
 	]);
 }
+// A valid MP4 with a large free atom exercises >100 MB disk-backed imports.
+const largeIntro = path.join(output, "intro-large.mp4");
+execFileSync(ffmpeg, [
+	"-v",
+	"error",
+	"-y",
+	"-i",
+	path.join(output, "intro.webm"),
+	"-c:v",
+	"libopenh264",
+	"-b:v",
+	"200k",
+	"-c:a",
+	"aac",
+	largeIntro,
+]);
+const largeHandle = await fs.open(largeIntro, "r+");
+try {
+	const size = (await largeHandle.stat()).size;
+	const atom = Buffer.alloc(8);
+	atom.writeUInt32BE(110 * 1024 ** 2);
+	atom.write("free", 4);
+	await largeHandle.write(atom, 0, atom.length, size);
+	await largeHandle.truncate(size + 110 * 1024 ** 2);
+} finally {
+	await largeHandle.close();
+}
 const application = await electron.launch({
 	executablePath: path.resolve(process.argv[2]),
 	env: { ...process.env, OPENSCREEN_DISABLE_CONTENT_PROTECTION: "1" },
@@ -130,14 +157,46 @@ try {
 	await page
 		.getByRole("textbox", { name: "Numbered card data" })
 		.fill("1\nTitle: Export test\nBudget: $1M\nBox Office: $5M\nPaycheck: $100K");
-	await page
-		.getByLabel("Choose intro image or video")
-		.setInputFiles(path.join(output, "intro.webm"));
-	await page.getByRole("status").filter({ hasText: "Intro video added" }).waitFor();
-	await page
-		.getByLabel("Choose outro image or video")
-		.setInputFiles(path.join(output, "outro.webm"));
-	await page.getByRole("status").filter({ hasText: "Outro video added" }).waitFor();
+	for (const [kind, file] of [
+		["intro", largeIntro],
+		["outro", path.join(output, "outro.webm")],
+	]) {
+		await application.evaluate(({ dialog }, selected) => {
+			dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selected] });
+		}, file);
+		await page.getByRole("button", { name: `Choose ${kind} image or video`, exact: true }).click();
+		await page
+			.getByRole("status")
+			.filter({ hasText: `${kind === "intro" ? "Intro" : "Outro"} video added` })
+			.waitFor();
+	}
+	// The retained copy must survive deleting the original compilation.
+	await fs.unlink(largeIntro);
+	await page.getByRole("button", { name: "Save project", exact: true }).click();
+	await page.waitForFunction(() =>
+		document.querySelector(".dr-recovery-status")?.textContent.includes("Recovery copy saved"),
+	);
+	const savedProject = path.join(output, "Data-Recruit.project.json");
+	let saved = "";
+	for (let attempt = 0; attempt < 100; attempt++) {
+		try {
+			const candidate = await fs.readFile(savedProject, "utf8");
+			JSON.parse(candidate);
+			saved = candidate;
+			break;
+		} catch {
+			/* Wait until the browser's JSON download is complete. */
+		}
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+	assert(saved, "Project download must finish");
+	assert(
+		saved.length < 2_000_000,
+		"Saved project must reference the compilation without embedding its bytes",
+	);
+	assert.match(JSON.parse(saved).intro.url, /^data-recruit-media:/);
+	await page.locator('input[accept=".json"]').setInputFiles(savedProject);
+	await page.getByRole("status").filter({ hasText: "Project opened" }).waitFor();
 	await page.getByLabel("intro transition", { exact: true }).selectOption("scroll");
 	await page.getByLabel("outro transition", { exact: true }).selectOption("scroll");
 	const transitionSamples = [];

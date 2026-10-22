@@ -24,6 +24,20 @@ declare namespace NodeJS {
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
 	electronAPI: {
+		dataRecruitBookendAudio?: (
+			id: string,
+			start: number,
+			duration: number,
+			job: string,
+		) => Promise<ArrayBuffer>;
+		dataRecruitCancelBookendAudio?: (job: string) => Promise<void>;
+		dataRecruitPickBookend?: () => Promise<{
+			name: string;
+			url: string;
+			kind: "image" | "video";
+		} | null>;
+		dataRecruitBookendInfo?: (id: string) => Promise<{ size: number; url: string }>;
+		dataRecruitReadBookend?: (id: string, offset: number, length: number) => Promise<ArrayBuffer>;
 		dataRecruitEncodeAudio?: (bytes: ArrayBuffer, id: string) => Promise<ArrayBuffer>;
 		dataRecruitCancelAudio?: (id: string) => Promise<void>;
 		dataRecruitSetDirty?: (dirty: boolean) => Promise<void>;

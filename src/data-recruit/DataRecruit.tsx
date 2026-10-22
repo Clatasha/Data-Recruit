@@ -67,7 +67,11 @@ const imageSchema = z.object({
 const bookendSchema = z
 	.object({
 		name: z.string(),
-		url: z.string().regex(/^data:(?:image|video)\//),
+		url: z
+			.string()
+			.regex(
+				/^(?:data:(?:image|video)\/|data-recruit-media:[a-f0-9-]{36}\.(?:mp4|webm|mov|m4v|png|jpg|jpeg|webp)$)/i,
+			),
 		transition: z.enum(TRANSITIONS).default("none"),
 		transitionSeconds: z.number().min(0.1).max(3).default(0.75),
 		kind: z.enum(["image", "video"]).default("image"),
@@ -391,8 +395,6 @@ export default function DataRecruit({
 		const generation = projectGeneration.current;
 		if (!file) return;
 		try {
-			if (file.size > 100 * 1024 * 1024)
-				throw new Error("Use an intro or outro smaller than 100 MB.");
 			const mediaKind =
 				file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name)
 					? "video"
@@ -407,6 +409,24 @@ export default function DataRecruit({
 			);
 		} catch (error) {
 			fail(error);
+		}
+	}
+	async function pickBookend(kind: "intro" | "outro") {
+		const generation = projectGeneration.current;
+		try {
+			const selected = await window.electronAPI?.dataRecruitPickBookend?.();
+			if (!selected || generation !== projectGeneration.current) return;
+			setMessage(`Loading ${kind}…`);
+			const value = await loadBookend(selected.name, selected.url, selected.kind);
+			if (value.duration > 600) value.duration = 600;
+			if (generation !== projectGeneration.current) return;
+			history.checkpoint();
+			(kind === "intro" ? setIntro : setOutro)(value);
+			setMessage(
+				`${kind === "intro" ? "Intro" : "Outro"} ${selected.kind} added. ${selected.kind === "video" ? "Original audio is included unless muted." : ""}`,
+			);
+		} catch (error) {
+			if (generation === projectGeneration.current) fail(error);
 		}
 	}
 	function newProject() {
@@ -1412,19 +1432,30 @@ export default function DataRecruit({
 							const setter = kind === "intro" ? setIntro : setOutro;
 							return (
 								<div className="dr-bookend-control" key={kind}>
-									<label className="dr-button">
-										＋ {item?.name || `Add ${kind} image or video`}
-										<input
-											type="file"
+									{window.electronAPI?.dataRecruitPickBookend ? (
+										<button
+											type="button"
+											className="dr-button"
 											aria-label={`Choose ${kind} image or video`}
-											accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,video/x-m4v"
-											hidden
-											onChange={(event) => {
-												void addBookend(event.target.files?.[0], kind);
-												event.target.value = "";
-											}}
-										/>
-									</label>
+											onClick={() => void pickBookend(kind)}
+										>
+											＋ {item?.name || `Add ${kind} image or video`}
+										</button>
+									) : (
+										<label className="dr-button">
+											＋ {item?.name || `Add ${kind} image or video`}
+											<input
+												type="file"
+												aria-label={`Choose ${kind} image or video`}
+												accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,video/x-m4v"
+												hidden
+												onChange={(event) => {
+													void addBookend(event.target.files?.[0], kind);
+													event.target.value = "";
+												}}
+											/>
+										</label>
+									)}
 									{item && (
 										<>
 											<label>
@@ -1605,7 +1636,8 @@ export default function DataRecruit({
 						})}
 						<small>
 							Choose an image or video. Entrance and exit time is added to the timeline, so each
-							bookend keeps its full playback duration.
+							bookend keeps its full playback duration. Desktop imports have no 100 MB limit. Media
+							is kept by Data Recruit on this computer, including for saved projects.
 						</small>
 					</section>
 					<section>
