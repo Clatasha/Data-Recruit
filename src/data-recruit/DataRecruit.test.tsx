@@ -99,6 +99,45 @@ describe("builder actions", () => {
 			expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(2),
 		);
 	});
+	it("keeps all 100 images when adding later batches and replacing a matching number", async () => {
+		const view = render(<DataRecruit />);
+		const input = view.container.querySelector("input[multiple]")!;
+		for (const [start, count] of [
+			[1, 12],
+			[13, 38],
+			[51, 50],
+		]) {
+			await act(async () => {
+				fireEvent.change(input, {
+					target: {
+						files: Array.from(
+							{ length: count },
+							(_, index) => new File(["image"], `${start + index}.png`, { type: "image/png" }),
+						),
+					},
+				});
+			});
+			await waitFor(() =>
+				expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(
+					start + count - 1,
+				),
+			);
+			const grid = screen.getByRole("region", { name: "Added images" });
+			expect(grid.classList.contains("dr-images-scroll")).toBe(start + count - 1 > 12);
+			expect(screen.getByText("＋ Add more images")).toBeTruthy();
+		}
+		await act(async () => {
+			fireEvent.change(input, {
+				target: { files: [new File(["replacement"], "50 - corrected.png", { type: "image/png" })] },
+			});
+		});
+		await waitFor(() =>
+			expect(view.container.querySelector('img[alt="50 - corrected.png"]')).toBeTruthy(),
+		);
+		expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(100);
+		expect(view.container.querySelector('img[alt="1.png"]')).toBeTruthy();
+		expect(view.container.querySelector('img[alt="100.png"]')).toBeTruthy();
+	});
 });
 
 it("duplicates and removes cards while undo restores the image and text together", async () => {

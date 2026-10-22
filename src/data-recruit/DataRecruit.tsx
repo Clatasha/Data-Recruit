@@ -324,8 +324,10 @@ export default function DataRecruit({
 	const fail = (error: unknown) =>
 		setMessage(error instanceof Error ? error.message : String(error));
 	async function importImages(files: File[]) {
+		if (!files.length) return;
 		try {
-			if (files.length > 100) throw new Error("Select up to 100 images per project.");
+			if (files.length > 100)
+				throw new Error("Select up to 100 images at a time. You can add more in another batch.");
 			const loaded: CardImage[] = [];
 			for (const file of files) {
 				const id = imageNumber(file.name);
@@ -678,10 +680,12 @@ export default function DataRecruit({
 					</div>
 					<section>
 						<h2>
-							<b>01</b> Images
+							<b>01</b> Images <small>{images.length} added</small>
 						</h2>
 						<label className="dr-drop">
-							＋ Select numbered images<small>1.jpg, 2.jpg, 3.jpg · PNG / JPG / WebP</small>
+							{images.length ? "＋ Add more images" : "＋ Select numbered images"}
+							<small>1.jpg, 2.jpg, 3.jpg · PNG / JPG / WebP</small>
+							<small>Add batches anytime. Matching numbers replace existing images.</small>
 							<input
 								type="file"
 								accept="image/png,image/jpeg,image/webp"
@@ -693,7 +697,12 @@ export default function DataRecruit({
 								}}
 							/>
 						</label>
-						<div className="dr-images">
+						<div
+							className={`dr-images${images.length > 12 ? " dr-images-scroll" : ""}`}
+							role="region"
+							aria-label="Added images"
+							tabIndex={images.length > 12 ? 0 : undefined}
+						>
 							{[...images]
 								.sort(
 									(a, b) =>

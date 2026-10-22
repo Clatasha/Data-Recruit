@@ -1049,3 +1049,9 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 - Decoder now retries with a fresh software codec context and uploads frames to the existing rendering device when D3D11VA attach/open fails. Hardware decoding remains preferred.
 - Added a Windows regression forcing hardware initialization failure on WARP, checking software selection, clean device references, decoded pixels and nonzero seeking. Windows build runs that exact test before packaging; smoke requires a painted native canvas and reports preview alerts on failure.
 - Local native compilation and installed Windows/macOS manual QA unavailable on this Linux host. Windows CI remains required; no stable release promotion.
+
+### Data Recruit large image batches — 2026-10-22 — Partial, Linux workspace
+
+- The importer already merged numbered batches; an unbounded thumbnail grid made the sidebar unwieldy. Added a three-row scroll area after 12 images, visible scrollbar, keyboard scrolling, image count and an explicit Add more images label. Clarified the 100-image limit is per batch; matching numbers replace images. Empty selection leaves the current selection intact.
+- Regression passed: import 12, then 38, then 50 images; all 100 remain; replacing number 50 preserves the count and other images. App/test TypeScript and changed-file Biome checks passed. Narrow targeted checks plus Windows CI used for this change.
+- Windows smoke now imports a later batch up to 100, checks the original replacement remains, verifies overflow and scrolls to the final thumbnail. Local Chromium verification could not run because the browser binary is absent and its download failed; packaged Windows verification remains pending. No native code changed or stable release promoted.

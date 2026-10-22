@@ -205,6 +205,30 @@ try {
 	await page.getByRole("button", { name: "← Return to builder", exact: true }).click();
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor();
 	assert.equal(await page.locator(".dr-images button").count(), 3);
+	// Add a later batch after working with the original three images.
+	await page.locator("input[multiple]").setInputFiles(
+		Array.from({ length: 97 }, (_, index) => ({
+			name: `${index + 4}.png`,
+			mimeType: "image/png",
+			buffer: Buffer.from(files[index % files.length], "base64"),
+		})),
+	);
+	await page.waitForFunction(() => document.querySelectorAll(".dr-images button").length === 100);
+	assert.equal(await page.locator('.dr-images img[alt="correct-photo.png"]').count(), 1);
+	const imageList = page.getByRole("region", { name: "Added images" });
+	assert(await imageList.evaluate((element) => element.scrollHeight > element.clientHeight));
+	await imageList.evaluate((element) => {
+		element.scrollTop = element.scrollHeight;
+	});
+	assert(
+		await imageList.evaluate((element) => {
+			const last = element.lastElementChild.getBoundingClientRect();
+			const list = element.getBoundingClientRect();
+			return last.top >= list.top && last.bottom <= list.bottom;
+		}),
+	);
+	await page.getByText("＋ Add more images", { exact: true }).scrollIntoViewIfNeeded();
+	await page.screenshot({ path: path.join(output, "100-images.png") });
 	assert.deepEqual(errors, []);
 	console.log(
 		"Data Recruit: playback after edits, image replacement, video bookends with timed audio, Save As export, Shorts and editor handoff passed.",
