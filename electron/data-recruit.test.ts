@@ -90,3 +90,31 @@ it("finishes audio through an app-owned job and restricts cancellation to its wi
 	expect(sender.removeListener).toHaveBeenCalledWith("destroyed", expect.any(Function));
 	await expect(encode({ sender }, "invalid", "test-export-123")).rejects.toThrow("Invalid video");
 });
+
+const projectHandler = () =>
+	mocks.handle.mock.calls.find(([name]) => name === "data-recruit:save-project")![1];
+it("writes each saved revision only to the path chosen in the native project dialog", async () => {
+	mocks.dialog.mockResolvedValue({ canceled: false, filePath: "/videos/project.json" });
+	const first = JSON.stringify({ version: 1, music: [] });
+	const second = JSON.stringify({ version: 1, music: [{ name: "song" }] });
+	expect(await projectHandler()({ sender: {} }, first)).toBe("/videos/project.json");
+	expect(await projectHandler()({ sender: {} }, second)).toBe("/videos/project.json");
+	expect(mocks.write.mock.calls).toEqual([
+		["/videos/project.json", first, "utf8"],
+		["/videos/project.json", second, "utf8"],
+	]);
+});
+it("does not write a cancelled save and propagates file-write failures", async () => {
+	const content = JSON.stringify({ version: 1 });
+	mocks.dialog.mockResolvedValueOnce({ canceled: true });
+	expect(await projectHandler()({ sender: {} }, content)).toBeNull();
+	expect(mocks.write).not.toHaveBeenCalled();
+	mocks.dialog.mockResolvedValueOnce({ canceled: false, filePath: "/videos/project.json" });
+	mocks.write.mockRejectedValueOnce(new Error("disk full"));
+	await expect(projectHandler()({ sender: {} }, content)).rejects.toThrow("disk full");
+});
+it("rejects malformed project content before opening a native dialog", async () => {
+	await expect(projectHandler()({ sender: {} }, "{")).rejects.toThrow();
+	await expect(projectHandler()({ sender: {} }, '{"version":2}')).rejects.toThrow("version");
+	expect(mocks.dialog).not.toHaveBeenCalled();
+});

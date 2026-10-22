@@ -165,16 +165,14 @@ try {
 		[1080, 1920],
 	);
 	await page.screenshot({ path: path.join(output, "shorts.png") });
-	await application.evaluate(({ session }, folder) => {
-		session.defaultSession.on("will-download", (_event, item) =>
-			item.setSavePath(`${folder}/${item.getFilename()}`),
-		);
-	}, output);
 	await application.evaluate(({ dialog }, folder) => {
-		dialog.showSaveDialog = async () => ({
-			canceled: false,
-			filePath: `${folder}/Data-Recruit.mp4`,
-		});
+		dialog.showSaveDialog = async (...args) => {
+			const options = args.at(-1);
+			return {
+				canceled: false,
+				filePath: `${folder}/${options.title === "Save Data Recruit project" ? "Data-Recruit.project.json" : "Data-Recruit.mp4"}`,
+			};
+		};
 	}, output);
 	await page
 		.getByRole("textbox", { name: "Numbered card data" })
@@ -195,23 +193,10 @@ try {
 	// The retained copy must survive deleting the original compilation.
 	await fs.unlink(largeIntro);
 	await page.getByRole("button", { name: "Save project", exact: true }).click();
-	await page.waitForFunction(() =>
-		document.querySelector(".dr-recovery-status")?.textContent.includes("Recovery copy saved"),
-	);
+	await page.getByRole("status").filter({ hasText: "Project saved." }).waitFor();
 	const savedProject = path.join(output, "Data-Recruit.project.json");
-	let saved = "";
-	for (let attempt = 0; attempt < 100; attempt++) {
-		try {
-			const candidate = await fs.readFile(savedProject, "utf8");
-			JSON.parse(candidate);
-			saved = candidate;
-			break;
-		} catch {
-			/* Wait until the browser's JSON download is complete. */
-		}
-		await new Promise((resolve) => setTimeout(resolve, 50));
-	}
-	assert(saved, "Project download must finish");
+	const saved = await fs.readFile(savedProject, "utf8");
+	JSON.parse(saved);
 	assert(
 		saved.length < 2_000_000,
 		"Saved project must reference the compilation without embedding its bytes",
@@ -370,25 +355,10 @@ try {
 	});
 	await page.screenshot({ path: path.join(output, "music-and-countdown.png") });
 	// Persist source trims, loops, levels and numbering, without persisting listening volume.
-	const previousSave = await fs.readFile(savedProject, "utf8");
 	await page.getByRole("button", { name: "Save project", exact: true }).click();
-	let musicRecipe;
-	for (let attempt = 0; attempt < 100; attempt++) {
-		try {
-			const candidate = await fs.readFile(savedProject, "utf8");
-			if (candidate !== previousSave) {
-				const value = JSON.parse(candidate);
-				if (value.music?.length === 2) {
-					musicRecipe = value;
-					break;
-				}
-			}
-		} catch {
-			/* Download in progress. */
-		}
-		await new Promise((resolve) => setTimeout(resolve, 50));
-	}
-	assert(musicRecipe, "Music project download must finish");
+	await page.getByRole("status").filter({ hasText: "Project saved." }).waitFor();
+	const musicRecipe = JSON.parse(await fs.readFile(savedProject, "utf8"));
+	assert.equal(musicRecipe.music.length, 2, "Repeated save must contain the current music clips");
 	assert.equal(musicRecipe.music[0].start, 0.25);
 	assert.equal(musicRecipe.music[0].end, 1.75);
 	assert.equal(musicRecipe.music[0].volume, 0.5);

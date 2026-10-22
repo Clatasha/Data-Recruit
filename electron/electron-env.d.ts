@@ -41,6 +41,7 @@ interface Window {
 		dataRecruitReadBookend?: (id: string, offset: number, length: number) => Promise<ArrayBuffer>;
 		dataRecruitEncodeAudio?: (bytes: ArrayBuffer, id: string) => Promise<ArrayBuffer>;
 		dataRecruitCancelAudio?: (id: string) => Promise<void>;
+		dataRecruitSaveProject?: (recipe: string) => Promise<string | null>;
 		dataRecruitSetDirty?: (dirty: boolean) => Promise<void>;
 		dataRecruitExportVideo?: (bytes: ArrayBuffer) => Promise<string | null>;
 		dataRecruitSaveVideo?: (bytes: ArrayBuffer, recipe: string) => Promise<string>;

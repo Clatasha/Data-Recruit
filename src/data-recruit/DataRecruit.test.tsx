@@ -318,3 +318,59 @@ it("adds multiple music clips, edits and splits them, and exports clip levels in
 	expect(clips.map((clip) => clip.at)).toEqual([0, 1, 2]);
 	expect(localStorage.getItem("data-recruit-preview-volume")).toBe("0");
 });
+
+it("marks a desktop project saved only after the native write completes", async () => {
+	await setup();
+	let finish: (path: string) => void = () => {
+		throw new Error("Save did not start");
+	};
+	const save = vi.fn(
+		(_recipe: string) =>
+			new Promise<string>((resolve) => {
+				finish = resolve;
+			}),
+	);
+	window.electronAPI.dataRecruitSaveProject = save;
+	fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+	expect(screen.getByRole("status").textContent).toContain("Unsaved project");
+	expect(
+		(screen.getByRole("button", { name: "Saving project…" }) as HTMLButtonElement).disabled,
+	).toBe(true);
+	await act(async () => finish("C:/project.json"));
+	expect(screen.getByRole("status").textContent).toContain("Project saved.");
+	expect(screen.getByRole("status").textContent).not.toContain("Unsaved project");
+	expect(JSON.parse(save.mock.calls[0][0]).images).toHaveLength(1);
+});
+it("keeps the current project when Save and start new is cancelled or fails", async () => {
+	const view = await setup();
+	const save = vi.fn(async (_recipe: string): Promise<string | null> => null);
+	window.electronAPI.dataRecruitSaveProject = save;
+	fireEvent.click(screen.getByRole("button", { name: "New project" }));
+	fireEvent.click(screen.getByRole("button", { name: "Save and start new" }));
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("save cancelled"));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+	expect(screen.getByRole("dialog", { name: "Start a new project?" })).toBeTruthy();
+	save.mockRejectedValueOnce(new Error("disk full"));
+	fireEvent.click(screen.getByRole("button", { name: "Save and start new" }));
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("disk full"));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+	expect(screen.getByRole("status").textContent).toContain("Unsaved project");
+});
+it("keeps edits made while an earlier snapshot is being saved marked unsaved", async () => {
+	await setup();
+	let finish: (path: string) => void = () => {
+		throw new Error("Save did not start");
+	};
+	window.electronAPI.dataRecruitSaveProject = vi.fn(
+		(_recipe: string) =>
+			new Promise<string>((resolve) => {
+				finish = resolve;
+			}),
+	);
+	fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+	fireEvent.change(screen.getByLabelText("Numbered card data"), {
+		target: { value: validText.replace("First", "Later edit") },
+	});
+	await act(async () => finish("C:/project.json"));
+	expect(screen.getByRole("status").textContent).toContain("Unsaved project");
+});

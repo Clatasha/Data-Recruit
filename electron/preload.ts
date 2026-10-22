@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("data-recruit:encode-audio", bytes, id),
 	dataRecruitCancelAudio: (id: string): Promise<void> =>
 		ipcRenderer.invoke("data-recruit:cancel-audio", id),
+	dataRecruitSaveProject: (recipe: string): Promise<string | null> =>
+		ipcRenderer.invoke("data-recruit:save-project", recipe),
 	dataRecruitSetDirty: (dirty: boolean): Promise<void> =>
 		ipcRenderer.invoke("data-recruit:set-dirty", dirty),
 	dataRecruitExportVideo: (bytes: ArrayBuffer): Promise<string | null> =>

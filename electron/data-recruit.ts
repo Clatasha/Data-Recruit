@@ -66,6 +66,25 @@ export function registerDataRecruitIpc() {
 				});
 		});
 	});
+	ipcMain.handle("data-recruit:save-project", async (event, recipe: string) => {
+		if (typeof recipe !== "string" || recipe.length > 500_000_000)
+			throw new Error("Invalid project data.");
+		const project = JSON.parse(recipe);
+		if (project?.version !== 1) throw new Error("Invalid project version.");
+		const parent = BrowserWindow.fromWebContents(event.sender);
+		const options = {
+			title: "Save Data Recruit project",
+			defaultPath: path.join(app.getPath("documents"), "Data-Recruit.project.json"),
+			filters: [{ name: "Data Recruit project", extensions: ["json"] }],
+		};
+		const chosen = parent
+			? await dialog.showSaveDialog(parent, options)
+			: await dialog.showSaveDialog(options);
+		if (chosen.canceled || !chosen.filePath) return null;
+		await fs.writeFile(chosen.filePath, recipe, "utf8");
+		return chosen.filePath;
+	});
+
 	ipcMain.handle("data-recruit:export-video", async (event, bytes: ArrayBuffer) => {
 		if (!(bytes instanceof ArrayBuffer) || bytes.byteLength > 1024 * 1024 * 1024)
 			throw new Error("Invalid video data.");

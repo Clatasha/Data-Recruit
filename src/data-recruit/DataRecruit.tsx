@@ -160,6 +160,10 @@ export default function DataRecruit({
 		exportOptions: { ...DEFAULT_EXPORT },
 	});
 	const history = useProjectHistory(emptyProject());
+	const currentProject = useRef(history.present);
+	currentProject.current = history.present;
+	const [savingProject, setSavingProject] = useState(false);
+	const savePending = useRef(false);
 	const { text, template, images, settings, intro, outro, order, exportOptions, music } =
 		history.present;
 	const setter =
@@ -571,6 +575,40 @@ export default function DataRecruit({
 			outro: serializeBookend(outro),
 		};
 	}
+	async function saveProject() {
+		if (savePending.current) return false;
+		savePending.current = true;
+		setSavingProject(true);
+		const snapshot = history.present;
+		const generation = projectGeneration.current;
+		try {
+			const content = JSON.stringify(recipe());
+			const desktop = window.electronAPI?.dataRecruitSaveProject;
+			if (desktop) {
+				const path = await desktop(content);
+				if (!path) {
+					setMessage("Project save cancelled. Your changes are still here.");
+					return false;
+				}
+			} else {
+				download(new Blob([content], { type: "application/json" }), "Data-Recruit.project.json");
+			}
+			if (generation !== projectGeneration.current) return false;
+			setSavedState(snapshot);
+			setMessage(desktop ? "Project saved." : "Project downloaded.");
+			void recovery(content)
+				.then(() => setRecoveryStatus("Recovery copy saved"))
+				.catch(() => setRecoveryStatus("Recovery could not be saved. Keep your project file."));
+			return currentProject.current === snapshot;
+		} catch (error) {
+			fail(error);
+			return false;
+		} finally {
+			savePending.current = false;
+			setSavingProject(false);
+		}
+	}
+
 	async function openRecipe(file: File | undefined, source?: string) {
 		if (!file && !source) return;
 		const generation = ++projectGeneration.current;
@@ -825,22 +863,8 @@ export default function DataRecruit({
 							}}
 						/>
 					</label>
-					<button
-						type="button"
-						onClick={() => {
-							download(
-								new Blob([JSON.stringify(recipe())], { type: "application/json" }),
-								"Data-Recruit.project.json",
-							);
-							setSavedState(history.present);
-							void recovery(JSON.stringify(recipe()))
-								.then(() => setRecoveryStatus("Recovery copy saved"))
-								.catch(() =>
-									setRecoveryStatus("Recovery could not be saved. Keep your project file."),
-								);
-						}}
-					>
-						Save project
+					<button type="button" disabled={savingProject} onClick={() => void saveProject()}>
+						{savingProject ? "Saving project…" : "Save project"}
 					</button>
 					<button
 						className="dr-primary"
@@ -871,12 +895,11 @@ export default function DataRecruit({
 						<button
 							type="button"
 							className="dr-primary"
+							disabled={savingProject}
 							onClick={() => {
-								download(
-									new Blob([JSON.stringify(recipe())], { type: "application/json" }),
-									"Data-Recruit.project.json",
-								);
-								newProject();
+								void saveProject().then((saved) => {
+									if (saved) newProject();
+								});
 							}}
 						>
 							Save and start new
