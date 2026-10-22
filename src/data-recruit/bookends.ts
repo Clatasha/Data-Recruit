@@ -1,4 +1,5 @@
 import type { Transition } from "./transitions";
+import { previewColor } from "./videoColor";
 export type Bookend = {
 	name: string;
 	url: string;
@@ -11,6 +12,7 @@ export type Bookend = {
 			kind: "video";
 			media: HTMLVideoElement;
 			sourceDuration: number;
+			colorSpace?: VideoColorSpaceInit | null;
 			muted: boolean;
 			start?: number;
 			volume?: number;
@@ -81,6 +83,7 @@ export async function loadBookend(
 		url,
 		media,
 		sourceDuration: media.duration,
+		colorSpace: previewColor(media),
 		duration: Math.max(0.1, Math.min(media.duration - start, duration ?? media.duration)),
 		muted,
 	};

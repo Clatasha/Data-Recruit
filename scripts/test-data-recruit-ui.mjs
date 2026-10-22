@@ -77,6 +77,11 @@ try {
 		if (message.text().startsWith("Data Recruit decoder color")) console.log(message.text());
 	});
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor({ timeout: 60_000 });
+	await page.evaluate(() =>
+		window.addEventListener("data-recruit:decoder-diagnostic", (event) =>
+			console.log("Data Recruit decoder color", JSON.stringify(event.detail)),
+		),
+	);
 	const files = await page.evaluate(() =>
 		["#355c79", "#93734b", "#554e81"].map((color, index) => {
 			const canvas = document.createElement("canvas");

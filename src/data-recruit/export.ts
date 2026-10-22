@@ -3,13 +3,14 @@ import {
 	AudioSample,
 	AudioSampleSource,
 	BufferTarget,
-	CanvasSink,
 	CanvasSource,
 	canEncodeVideo,
 	type Input,
 	MovOutputFormat,
 	Mp4OutputFormat,
 	Output,
+	VideoSample,
+	VideoSampleSink,
 } from "mediabunny";
 import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
@@ -19,7 +20,7 @@ import { geometry, type ScrollSettings } from "./model";
 import { drawImageFit } from "./render";
 import { drawSequence } from "./sequence";
 import { sequenceTiming } from "./transitions";
-import { matchPreviewColor } from "./videoColor";
+import { matchDecodedColor, previewColor } from "./videoColor";
 
 interface VideoBookend {
 	item: Extract<Bookend, { kind: "video" }>;
@@ -27,7 +28,7 @@ interface VideoBookend {
 	visibleStart: number;
 	visibleEnd: number;
 	input: Input;
-	frames: AsyncGenerator<import("mediabunny").WrappedCanvas | null, void, unknown>;
+	frames: AsyncGenerator<HTMLCanvasElement, void, unknown>;
 	audio: AudioBuffer | null;
 }
 
@@ -45,13 +46,47 @@ async function prepareVideo(
 		const track = await input.getPrimaryVideoTrack();
 		if (!track) throw new Error(`No video track in ${item.name}.`);
 		const first = await track.getFirstTimestamp();
-		await matchPreviewColor(track, item.media);
-		const sink = new CanvasSink(track, { poolSize: 2 });
+		const color = item.colorSpace ?? previewColor(item.media);
+		const sink = new VideoSampleSink(track);
 		function* timestamps() {
 			for (let frame = Math.ceil(visibleStart * fps); frame < Math.ceil(visibleEnd * fps); frame++)
 				yield first +
 					(item.start ?? 0) +
 					Math.max(0, Math.min(item.duration - 1 / fps, frame / fps - offset));
+		}
+		async function* decodedFrames() {
+			const pool = [document.createElement("canvas"), document.createElement("canvas")];
+			let index = 0,
+				reported = false;
+			for await (const sample of sink.samplesAtTimestamps(timestamps())) {
+				if (!sample) throw new Error(`No readable video frame in ${item.name}.`);
+				const canvas = pool[index++ % pool.length];
+				const frame = sample.toVideoFrame();
+				let adjusted: VideoSample | null = null;
+				try {
+					if (!reported) {
+						window.dispatchEvent(
+							new CustomEvent("data-recruit:decoder-diagnostic", {
+								detail: { native: color, decoded: frame.colorSpace.toJSON(), format: frame.format },
+							}),
+						);
+						reported = true;
+					}
+					const corrected = await matchDecodedColor(frame, color);
+					if (corrected) adjusted = new VideoSample(corrected, { rotation: sample.rotation });
+					const draw = adjusted ?? sample;
+					canvas.width = Math.round(draw.displayWidth);
+					canvas.height = Math.round(draw.displayHeight);
+					const context = canvas.getContext("2d");
+					if (!context) throw new Error("Canvas unavailable.");
+					draw.drawWithFit(context, { fit: "fill" });
+				} finally {
+					adjusted?.close();
+					frame.close();
+					sample.close();
+				}
+				yield canvas;
+			}
 		}
 		let audio: AudioBuffer | null = null;
 		const audioTrack = !item.muted ? await input.getPrimaryAudioTrack() : null;
@@ -109,7 +144,7 @@ async function prepareVideo(
 			visibleStart,
 			visibleEnd,
 			input,
-			frames: sink.canvasesAtTimestamps(timestamps()),
+			frames: decodedFrames(),
 			audio,
 		};
 	} catch (error) {
@@ -191,7 +226,7 @@ export async function encodeScroll(
 				for (const video of videos) {
 					if (time < video.visibleStart || time >= video.visibleEnd) continue;
 					const decoded = await video.frames.next();
-					if (decoded.value) videoFrames.set(video.item, decoded.value.canvas);
+					if (decoded.value) videoFrames.set(video.item, decoded.value);
 					else throw new Error(`No readable video frame in ${video.item.name}.`);
 				}
 				ctx.save();
