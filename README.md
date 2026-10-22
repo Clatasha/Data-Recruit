@@ -58,6 +58,10 @@ Reaction Station, OpenScreen, Siddharth Vaddem and the OpenScreen contributors. 
 
 The live canvas uses its own display clock and fractional positions; the controls update independently. New projects default to 60 FPS. Saved projects retain their chosen frame rate.
 
-Each intro/outro can use None, Fade, Scroll with cards, Squeeze & burst, Rise up or Go down, with an adjustable effect duration. Effects use the end of the intro and the beginning of the outro; they do not add timeline time. Audio fades with the effect. Scroll transitions follow the selected direction and keep the cards moving across the handover. Preview and MP4 use the same compositor.
+The intro plays for its full duration, then holds its last frame while exiting. Scroll with cards keeps its edge touching the first card at the same speed. Squeeze & burst compresses it against the screen edge as the cards advance, ending in a brief burst. Intro also supports None, Fade, Rise up and Go down.
+
+The outro offers None, Fade, Ease in and Scroll with cards. Scroll with cards follows the last card, stops when fully in view, then plays for its full duration. Entrance time is extra; outro audio starts only after settling. Connected movement follows Seconds per card in either direction and both formats. Fade/ease/vertical effects have their own transition duration. Preview and MP4 use the same compositor.
+
+**New project** starts fresh without reopening the app, with Save, Discard and Cancel choices for unsaved work. It clears media, settings, timeline, recovery and undo history while retaining saved custom templates.
 
 Continue in Editor preloads the editor while rendering, then holds the first exported frame on a dark loading screen until the editor's native preview is ready. You can show the editor or return to the builder while it prepares.

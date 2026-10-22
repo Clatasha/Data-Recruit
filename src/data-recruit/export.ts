@@ -15,14 +15,16 @@ import {
 import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
-import { geometry, type ScrollSettings, scrollDuration } from "./model";
+import { geometry, type ScrollSettings } from "./model";
 import { drawImageFit } from "./render";
 import { drawSequence } from "./sequence";
-import { transitionGain } from "./transitions";
+import { sequenceTiming } from "./transitions";
 
 interface VideoBookend {
 	item: Extract<Bookend, { kind: "video" }>;
 	offset: number;
+	visibleStart: number;
+	visibleEnd: number;
 	input: Input;
 	frames: AsyncGenerator<import("mediabunny").WrappedCanvas | null, void, unknown>;
 	audio: AudioBuffer | null;
@@ -35,6 +37,8 @@ async function prepareVideo(
 	width: number,
 	height: number,
 	fps: number,
+	visibleStart: number,
+	visibleEnd: number,
 ): Promise<VideoBookend> {
 	const bytes = await (await fetch(item.url)).arrayBuffer();
 	const input = new Input({ source: new BufferSource(bytes), formats: ALL_FORMATS });
@@ -44,12 +48,10 @@ async function prepareVideo(
 		const first = await track.getFirstTimestamp();
 		const sink = new CanvasSink(track, { width, height, fit: "contain", poolSize: 2 });
 		function* timestamps() {
-			for (
-				let frame = Math.ceil(offset * fps);
-				frame < Math.ceil((offset + item.duration) * fps);
-				frame++
-			)
-				yield first + Math.max(0, frame / fps - offset + (item.start ?? 0));
+			for (let frame = Math.ceil(visibleStart * fps); frame < Math.ceil(visibleEnd * fps); frame++)
+				yield first +
+					(item.start ?? 0) +
+					Math.max(0, Math.min(item.duration - 1 / fps, frame / fps - offset));
 		}
 		let audio: AudioBuffer | null = null;
 		if (!item.muted && (await input.getPrimaryAudioTrack())) {
@@ -62,7 +64,15 @@ async function prepareVideo(
 				);
 			}
 		}
-		return { item, offset, input, frames: sink.canvasesAtTimestamps(timestamps()), audio };
+		return {
+			item,
+			offset,
+			visibleStart,
+			visibleEnd,
+			input,
+			frames: sink.canvasesAtTimestamps(timestamps()),
+			audio,
+		};
 	} catch (error) {
 		input.dispose();
 		throw error;
@@ -101,17 +111,21 @@ export async function encodeScroll(
 	});
 	const target = new BufferTarget();
 	let output: Output | undefined;
-	const scroll = scrollDuration(cards.length, settings),
-		introDuration = intro?.duration ?? 0;
-	const total = introDuration + scroll + (outro?.duration ?? 0);
+	const timing = sequenceTiming(cards.length, settings, intro, outro);
+	const total = timing.total;
 	const videos: VideoBookend[] = [];
 	const checkCancelled = () => {
 		if (signal.aborted) throw new Error("Export cancelled.");
 	};
 	try {
-		if (intro?.kind === "video") videos.push(await prepareVideo(intro, 0, width, height, fps));
+		if (intro?.kind === "video")
+			videos.push(
+				await prepareVideo(intro, 0, width, height, fps, 0, intro.duration + timing.introExit),
+			);
 		if (outro?.kind === "video")
-			videos.push(await prepareVideo(outro, introDuration + scroll, width, height, fps));
+			videos.push(
+				await prepareVideo(outro, timing.outroHold, width, height, fps, timing.outroStart, total),
+			);
 		checkCancelled();
 		const hasAudio = videos.some((video) => video.audio);
 		const audioCodec = hasAudio
@@ -136,14 +150,12 @@ export async function encodeScroll(
 			for (let frame = 0; frame < frames; frame++) {
 				checkCancelled();
 				const time = frame / fps;
-				const bookend =
-					time < introDuration ? intro : time >= introDuration + scroll ? outro : null;
-				let videoFrame: HTMLCanvasElement | OffscreenCanvas | null = null;
-				if (bookend?.kind === "video") {
-					const video = videos.find((value) => value.item === bookend)!;
+				const videoFrames = new Map<Bookend, HTMLCanvasElement | OffscreenCanvas>();
+				for (const video of videos) {
+					if (time < video.visibleStart || time >= video.visibleEnd) continue;
 					const decoded = await video.frames.next();
-					if (decoded.value) videoFrame = decoded.value.canvas;
-					else if (!decoded.done) throw new Error(`No readable video frame in ${bookend.name}.`);
+					if (decoded.value) videoFrames.set(video.item, decoded.value.canvas);
+					else throw new Error(`No readable video frame in ${video.item.name}.`);
 				}
 				ctx.save();
 				ctx.scale(width / design.width, height / design.height);
@@ -153,6 +165,7 @@ export async function encodeScroll(
 					else {
 						ctx.fillStyle = "#111827";
 						ctx.fillRect(0, 0, design.width, design.height);
+						const videoFrame = videoFrames.get(item);
 						if (videoFrame) ctx.drawImage(videoFrame, 0, 0, design.width, design.height);
 					}
 				});
@@ -194,16 +207,7 @@ export async function encodeScroll(
 								.getChannelData(Math.min(channel, video.audio.numberOfChannels - 1))
 								.subarray(from, to)
 								.subarray(0, buffer.length - at)
-								.map(
-									(value, index) =>
-										value *
-										(video.item.volume ?? 1) *
-										transitionGain(
-											video.item,
-											(from + index) / 48_000 - (video.item.start ?? 0),
-											video.item === intro ? "intro" : "outro",
-										),
-								),
+								.map((value) => value * (video.item.volume ?? 1)),
 							channel,
 							at,
 						);

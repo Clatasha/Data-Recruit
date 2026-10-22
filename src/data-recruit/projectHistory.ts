@@ -35,6 +35,15 @@ export function useProjectHistory<T>(initial: T) {
 		setPresent(next);
 	}
 	return {
+		reset: (next: T) => {
+			past.current = [];
+			future.current = [];
+			latest.current = next;
+			lastEdit.current = -Infinity;
+			lastKey.current = null;
+			setPresent(next);
+			return next;
+		},
 		replace: (next: T) => {
 			past.current = [...past.current.slice(-29), latest.current];
 			future.current = [];

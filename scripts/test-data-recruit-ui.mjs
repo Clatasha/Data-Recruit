@@ -138,8 +138,31 @@ try {
 		.getByLabel("Choose outro image or video")
 		.setInputFiles(path.join(output, "outro.webm"));
 	await page.getByRole("status").filter({ hasText: "Outro video added" }).waitFor();
-	await page.getByLabel("intro transition", { exact: true }).selectOption("fade");
-	await page.getByLabel("outro transition", { exact: true }).selectOption("rise");
+	await page.getByLabel("intro transition", { exact: true }).selectOption("scroll");
+	await page.getByLabel("outro transition", { exact: true }).selectOption("scroll");
+	const transitionSamples = [];
+	for (const time of [3, 7]) {
+		await page.getByRole("slider", { name: "Timeline position" }).fill(String(time));
+		await page.waitForFunction((at) => {
+			const canvas = document.querySelector(".dr-stage canvas");
+			const x = canvas.width * (at === 3 ? 0.25 : 0.75);
+			const rgb = canvas.getContext("2d").getImageData(x, canvas.height / 2, 1, 1).data;
+			return at === 3 ? rgb[0] > 180 && rgb[2] < 50 : rgb[2] > 180 && rgb[0] < 50;
+		}, time);
+		const pixels = await page.locator(".dr-stage canvas").evaluate((canvas) =>
+			[0.25, 0.75].map((fraction) => {
+				const x = canvas.width * fraction,
+					y = canvas.height / 2;
+				return {
+					x,
+					y,
+					rgb: Array.from(canvas.getContext("2d").getImageData(x, y, 1, 1).data).slice(0, 3),
+				};
+			}),
+		);
+		transitionSamples.push({ time, pixels });
+		await page.screenshot({ path: path.join(output, `connected-${time}.png`) });
+	}
 	await page.getByRole("button", { name: "Export MP4" }).click();
 	await page.waitForFunction(
 		() => {
@@ -157,6 +180,31 @@ try {
 		"Desktop MP4 export must finish with sound",
 	);
 	assert((await fs.stat(path.join(output, "Data-Recruit.mp4"))).size > 1000);
+	for (const sample of transitionSamples)
+		for (const pixel of sample.pixels) {
+			const rgb = execFileSync(ffmpeg, [
+				"-v",
+				"error",
+				"-ss",
+				String(sample.time),
+				"-i",
+				path.join(output, "Data-Recruit.mp4"),
+				"-frames:v",
+				"1",
+				"-vf",
+				`crop=2:2:${pixel.x}:${pixel.y}`,
+				"-pix_fmt",
+				"rgb24",
+				"-f",
+				"rawvideo",
+				"pipe:1",
+			]);
+			assert(rgb.length >= 3, "Export sample must contain pixels");
+			assert(
+				pixel.rgb.every((value, channel) => Math.abs(value - rgb[channel]) < 12),
+				`Preview/export transition mismatch at ${sample.time}s: ${pixel.rgb} vs ${Array.from(rgb.subarray(0, 3))}`,
+			);
+		}
 	const pcm = execFileSync(ffmpeg, [
 		"-v",
 		"error",
@@ -188,7 +236,11 @@ try {
 	};
 	assert(rms(0.2, 0.8) > 0.02, "Intro audio must be audible");
 	assert(rms(2, 4) < 0.001, "Bookend audio must not leak into the scrolling section");
-	assert(rms(5.2, 5.8) > 0.02, "Outro audio must start after the scrolling section");
+	assert(
+		rms(5.2, 8.8) < 0.001,
+		"Outro entrance must hold the first frame without starting its audio",
+	);
+	assert(rms(9.2, 9.8) > 0.02, "Outro audio must start after the scrolling section");
 	await page.getByRole("button", { name: "Continue in Editor" }).click();
 	await page
 		.getByRole("button", { name: "← Return to builder", exact: true })
@@ -232,6 +284,13 @@ try {
 	await addImages.scrollIntoViewIfNeeded();
 	assert(await addImages.isVisible(), "Add more images must remain accessible after scrolling");
 	await page.screenshot({ path: path.join(output, "100-images.png") });
+	await page.getByRole("button", { name: "New project", exact: true }).click();
+	await page.getByRole("button", { name: "Cancel", exact: true }).click();
+	assert.equal(await page.locator(".dr-images button").count(), 100);
+	await page.getByRole("button", { name: "New project", exact: true }).click();
+	await page.getByRole("button", { name: "Discard and start new", exact: true }).click();
+	assert.equal(await page.locator(".dr-images button").count(), 0);
+	assert(await page.getByRole("button", { name: "Undo", exact: true }).isDisabled());
 	assert.deepEqual(errors, []);
 	console.log(
 		"Data Recruit: playback after edits, image replacement, video bookends with timed audio, Save As export, Shorts and editor handoff passed.",

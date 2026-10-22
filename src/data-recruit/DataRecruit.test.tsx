@@ -16,6 +16,13 @@ vi.mock("./render", () => ({
 vi.mock("./bookends", async (original) => ({
 	...(await original<typeof import("./bookends")>()),
 	loadImage: vi.fn(async () => new Image()),
+	loadBookend: vi.fn(async (name: string, url: string) => ({
+		name,
+		url,
+		kind: "image" as const,
+		duration: 3,
+		media: new Image(),
+	})),
 }));
 vi.mock("@/lib/ai-edition/store/projectStore", () => ({ useProjectStore: { getState: vi.fn() } }));
 const validText = "1\nTitle: First\nBudget: $1M\nBox Office: $5M\nPaycheck: $100K";
@@ -170,4 +177,45 @@ it("updates a custom template by name and removes it from saved choices", async 
 	expect(list[0]).toMatchObject({ name: "Renamed ranking", font: "Georgia" });
 	fireEvent.click(screen.getByRole("button", { name: "Delete saved template" }));
 	expect(JSON.parse(localStorage.getItem("data-recruit-templates")!)).toHaveLength(0);
+});
+
+it("starts a new project without restarting and clears undo after confirming unsaved changes", async () => {
+	const view = await setup();
+	fireEvent.click(screen.getByRole("button", { name: "New project" }));
+	expect(screen.getByRole("dialog", { name: "Start a new project?" })).toBeTruthy();
+	fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+	fireEvent.click(screen.getByRole("button", { name: "New project" }));
+	fireEvent.click(screen.getByRole("button", { name: "Discard and start new" }));
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(0);
+	expect((screen.getByRole("button", { name: "Undo" }) as HTMLButtonElement).disabled).toBe(true);
+	expect((screen.getByRole("button", { name: "Redo" }) as HTMLButtonElement).disabled).toBe(true);
+	expect(screen.getByRole("status").textContent).toContain("New project ready");
+	await act(async () =>
+		fireEvent.change(view.container.querySelector("input[multiple]")!, {
+			target: { files: [new File(["image"], "5.png", { type: "image/png" })] },
+		}),
+	);
+	await waitFor(() =>
+		expect(view.container.querySelector('.dr-images img[alt="5.png"]')).toBeTruthy(),
+	);
+	expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(1);
+});
+it("offers squeeze for intro and ease in for outro with separate effect choices", async () => {
+	await setup();
+	for (const kind of ["intro", "outro"])
+		await act(async () =>
+			fireEvent.change(screen.getByLabelText(`Choose ${kind} image or video`), {
+				target: { files: [new File(["image"], `${kind}.png`, { type: "image/png" })] },
+			}),
+		);
+	const intro = (await screen.findByLabelText("intro transition")) as HTMLSelectElement;
+	const outro = (await screen.findByLabelText("outro transition")) as HTMLSelectElement;
+	expect(Array.from(intro.options).map((o) => o.value)).toContain("squeeze");
+	expect(Array.from(outro.options).map((o) => o.value)).not.toContain("squeeze");
+	expect(Array.from(outro.options).map((o) => o.value)).toContain("ease");
+	fireEvent.change(intro, { target: { value: "scroll" } });
+	expect(screen.queryByLabelText("intro transition seconds")).toBeNull();
+	fireEvent.change(outro, { target: { value: "ease" } });
+	expect(screen.getByLabelText("outro transition seconds")).toBeTruthy();
 });

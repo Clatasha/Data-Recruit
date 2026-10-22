@@ -7,3 +7,5 @@
 /* Three rows of four thumbnails; keep Add more images above the scrolling list. */
 .dr-images.dr-images-scroll{max-height:211px;overflow-y:scroll;overflow-x:hidden;grid-auto-rows:63px;align-content:start;padding:3px;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#687d9b #0f1520;overscroll-behavior:contain}
 .dr-images-scroll::-webkit-scrollbar{width:10px}.dr-images-scroll::-webkit-scrollbar-track{background:#0f1520;border-radius:5px}.dr-images-scroll::-webkit-scrollbar-thumb{background:#687d9b;border:2px solid #0f1520;border-radius:5px}
+
+.dr-new-project{position:fixed;inset:0;z-index:300;background:#000a;display:flex;align-items:center;justify-content:center}.dr-new-project>div{max-width:500px;padding:24px;background:#131a26;border:1px solid #416b63;border-radius:12px}.dr-header nav{flex-wrap:wrap}.dr-header{min-height:72px;height:auto;padding-top:10px;padding-bottom:10px}

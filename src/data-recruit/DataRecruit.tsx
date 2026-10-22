@@ -16,7 +16,6 @@ import {
 	parseCards,
 	SAMPLE_TEXT,
 	type ScrollSettings,
-	scrollDuration,
 	TEMPLATES,
 	validateCards,
 } from "./model";
@@ -24,7 +23,15 @@ import { useProjectHistory } from "./projectHistory";
 import { recovery } from "./recovery";
 import { type CardImage, renderCard } from "./render";
 import { drawSequence } from "./sequence";
-import { sequenceFrame, TRANSITIONS, type Transition, transitionGain } from "./transitions";
+import {
+	INTRO_TRANSITIONS,
+	OUTRO_TRANSITIONS,
+	outroTransition,
+	sequenceFrame,
+	sequenceTiming,
+	TRANSITIONS,
+	type Transition,
+} from "./transitions";
 import { usePreviewClock } from "./usePreviewClock";
 import "./data-recruit.css";
 
@@ -117,7 +124,7 @@ export default function DataRecruit({
 	onOpenEditor?: (poster?: string) => void;
 	onPrepareEditor?: () => Promise<unknown>;
 }) {
-	const history = useProjectHistory({
+	const emptyProject = () => ({
 		text: SAMPLE_TEXT,
 		template: structuredClone(TEMPLATES[0]) as CardTemplate,
 		images: [] as CardImage[],
@@ -130,8 +137,9 @@ export default function DataRecruit({
 		intro: null as Bookend | null,
 		outro: null as Bookend | null,
 		order: [] as number[],
-		exportOptions: DEFAULT_EXPORT,
+		exportOptions: { ...DEFAULT_EXPORT },
 	});
+	const history = useProjectHistory(emptyProject());
 	const { text, template, images, settings, intro, outro, order, exportOptions } = history.present;
 	const setter =
 		<K extends keyof typeof history.present>(key: K) =>
@@ -145,6 +153,8 @@ export default function DataRecruit({
 		setOutro = setter("outro"),
 		setOrder = setter("order"),
 		setExportOptions = setter("exportOptions");
+	const [newProjectPrompt, setNewProjectPrompt] = useState(false);
+	const projectGeneration = useRef(0);
 	const [draft, setDraft] = useState<string | null>(null);
 	const [recoveryReady, setRecoveryReady] = useState(false),
 		[recoveryStatus, setRecoveryStatus] = useState("");
@@ -255,9 +265,8 @@ export default function DataRecruit({
 			),
 		[parsed.cards, images, template, settings],
 	);
-	const scroll = scrollDuration(rendered.length, settings),
-		introTime = intro?.duration ?? 0;
-	const total = introTime + scroll + (outro?.duration ?? 0);
+	const timing = sequenceTiming(rendered.length, settings, intro, outro);
+	const total = timing.total;
 	const dims = geometry(settings.format);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Source edits update the timeline immediately and reset playback.
 	useEffect(() => {
@@ -268,34 +277,38 @@ export default function DataRecruit({
 		(at: number) => {
 			const ctx = canvasRef.current?.getContext("2d");
 			if (!ctx) return;
-			const frame = sequenceFrame(at, scroll, intro, outro);
-			const active = frame.slot === "intro" ? intro : frame.slot === "outro" ? outro : null;
+			const frame = sequenceFrame(at, rendered.length, settings, intro, outro);
 			for (const item of [intro, outro]) {
 				if (item?.kind !== "video") continue;
-				if (item === active) {
-					const target = Math.max(
-						0,
-						Math.min(item.sourceDuration - 0.001, frame.localTime + (item.start ?? 0)),
-					);
+				const isIntro = item === intro;
+				const visible = isIntro ? frame.introVisible : frame.outroVisible;
+				const localTime = isIntro ? frame.introTime : frame.outroTime;
+				const advancing = isIntro
+					? at < item.duration
+					: at >= frame.outroHold && localTime < item.duration;
+				if (visible) {
+					const target =
+						(item.start ?? 0) +
+						Math.max(0, Math.min(item.duration - 1 / exportOptions.fps, localTime));
 					if (
 						!item.media.seeking &&
-						Math.abs(item.media.currentTime - target) > (playing ? 0.2 : 0.015)
+						Math.abs(item.media.currentTime - target) > (playing && advancing ? 0.2 : 0.015)
 					)
 						item.media.currentTime = target;
-					item.media.muted = item.muted;
-					item.media.volume =
-						(item.volume ?? 1) * transitionGain(item, frame.localTime, frame.slot!);
-					if (playing && !busy && item.media.paused)
+					item.media.muted = item.muted || !advancing;
+					item.media.volume = item.volume ?? 1;
+					if (playing && !busy && advancing && item.media.paused)
 						void item.media.play().catch(() => {
 							setPlaying(false);
 							setMessage("Video playback could not start. Press Play to retry.");
 						});
-					else if (!playing || busy) item.media.pause();
+					else if (!playing || busy || !advancing) item.media.pause();
 				} else item.media.pause();
 			}
+
 			drawSequence(ctx, rendered, settings, at, intro, outro);
 		},
-		[rendered, settings, intro, outro, scroll, playing, busy],
+		[rendered, settings, intro, outro, playing, busy, exportOptions.fps],
 	);
 	const livePosition = usePreviewClock({
 		position: time,
@@ -324,6 +337,7 @@ export default function DataRecruit({
 	const fail = (error: unknown) =>
 		setMessage(error instanceof Error ? error.message : String(error));
 	async function importImages(files: File[]) {
+		const generation = projectGeneration.current;
 		if (!files.length) return;
 		try {
 			if (files.length > 100)
@@ -340,6 +354,7 @@ export default function DataRecruit({
 				const url = await readUrl(file);
 				loaded.push({ id, name: file.name, url, x: 0.5, y: 0.5, image: await loadImage(url) });
 			}
+			if (generation !== projectGeneration.current) return;
 			history.checkpoint();
 			setImages((existing) =>
 				[
@@ -354,10 +369,12 @@ export default function DataRecruit({
 		}
 	}
 	async function replaceImage(file: File | undefined, id: number) {
+		const generation = projectGeneration.current;
 		if (!file) return;
 		try {
 			const url = await readUrl(file),
 				image = await loadImage(url);
+			if (generation !== projectGeneration.current) return;
 			history.checkpoint();
 			setImages((existing) =>
 				[
@@ -371,6 +388,7 @@ export default function DataRecruit({
 		}
 	}
 	async function addBookend(file: File | undefined, kind: "intro" | "outro") {
+		const generation = projectGeneration.current;
 		if (!file) return;
 		try {
 			if (file.size > 100 * 1024 * 1024)
@@ -381,6 +399,7 @@ export default function DataRecruit({
 					: "image";
 			const value = await loadBookend(file.name, await readUrl(file), mediaKind);
 			if (value.duration > 600) value.duration = 600;
+			if (generation !== projectGeneration.current) return;
 			history.checkpoint();
 			(kind === "intro" ? setIntro : setOutro)(value);
 			setMessage(
@@ -389,6 +408,23 @@ export default function DataRecruit({
 		} catch (error) {
 			fail(error);
 		}
+	}
+	function newProject() {
+		projectGeneration.current++;
+		pauseBookends(intro, outro);
+		const next = history.reset(emptyProject());
+		setSavedState(next);
+		setDraft(null);
+		setSelected(null);
+		setPlaying(false);
+		setTime(0);
+		setBuilt(false);
+		setProgress(0);
+		setNewProjectPrompt(false);
+		setMessage("New project ready. Choose your images and import your numbered text.");
+		void recovery(null)
+			.then(() => setRecoveryStatus(""))
+			.catch(() => setRecoveryStatus("Recovery could not be cleared."));
 	}
 	function recipe() {
 		return {
@@ -404,6 +440,7 @@ export default function DataRecruit({
 		};
 	}
 	async function openRecipe(file: File | undefined, source?: string) {
+		const generation = projectGeneration.current;
 		if (!file && !source) return;
 		try {
 			const value = recipeSchema.parse(JSON.parse(source ?? (await file!.text())));
@@ -432,6 +469,7 @@ export default function DataRecruit({
 				restoreBookend(value.intro),
 				restoreBookend(value.outro),
 			]);
+			if (generation !== projectGeneration.current) return;
 			const next = history.replace({
 				...history.present,
 				order: value.order,
@@ -606,6 +644,13 @@ export default function DataRecruit({
 					</div>
 				</div>
 				<nav>
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() => (dirty ? setNewProjectPrompt(true) : newProject())}
+					>
+						New project
+					</button>
 					<button type="button" disabled={!history.canUndo || busy} onClick={history.undo}>
 						Undo
 					</button>
@@ -651,6 +696,39 @@ export default function DataRecruit({
 					</button>
 				</nav>
 			</header>
+			{newProjectPrompt && (
+				<div
+					className="dr-new-project"
+					role="dialog"
+					aria-modal="true"
+					aria-label="Start a new project?"
+				>
+					<div>
+						<h2>Start a new project?</h2>
+						<p>Save your current project or discard its unsaved changes.</p>
+						<button type="button" onClick={() => setNewProjectPrompt(false)}>
+							Cancel
+						</button>{" "}
+						<button type="button" onClick={newProject}>
+							Discard and start new
+						</button>{" "}
+						<button
+							type="button"
+							className="dr-primary"
+							onClick={() => {
+								download(
+									new Blob([JSON.stringify(recipe())], { type: "application/json" }),
+									"Data-Recruit.project.json",
+								);
+								newProject();
+							}}
+						>
+							Save and start new
+						</button>
+					</div>
+				</div>
+			)}
+
 			{draft && (
 				<div className="dr-recovery">
 					A recovery copy is available.{" "}
@@ -1118,9 +1196,17 @@ export default function DataRecruit({
 										setSelected(card.id);
 										setPlaying(false);
 										setTime(
-											introTime +
-												1 +
-												(index / Math.max(1, parsed.cards.length - 1)) * Math.max(0, scroll - 2),
+											Math.min(
+												total,
+												timing.motionStart +
+													Math.max(
+														0,
+														(timing.initialX +
+															index * timing.cardWidth -
+															(timing.width - timing.cardWidth) / 2) /
+															timing.speed,
+													),
+											),
 										);
 									}}
 								>
@@ -1131,7 +1217,7 @@ export default function DataRecruit({
 							{outro && (
 								<button
 									type="button"
-									onClick={() => setTime(introTime + scroll)}
+									onClick={() => setTime(timing.outroStart)}
 									className="dr-bookend"
 								>
 									Outro
@@ -1345,50 +1431,70 @@ export default function DataRecruit({
 												{kind === "intro" ? "Intro exit effect" : "Outro entrance effect"}
 												<select
 													aria-label={`${kind} transition`}
-													value={item.transition ?? "none"}
+													value={
+														kind === "intro"
+															? (item.transition ?? "none")
+															: outroTransition(item.transition)
+													}
 													onChange={(event) =>
 														setter({ ...item, transition: event.target.value as Transition })
 													}
 												>
-													{TRANSITIONS.map((effect) => (
-														<option key={effect} value={effect}>
-															{
+													{(kind === "intro" ? INTRO_TRANSITIONS : OUTRO_TRANSITIONS).map(
+														(effect) => (
+															<option key={effect} value={effect}>
 																{
-																	none: "None",
-																	fade: "Fade",
-																	scroll: "Scroll with cards",
-																	squeeze: "Squeeze & burst",
-																	rise: "Rise up",
-																	fall: "Go down",
-																}[effect]
-															}
-														</option>
-													))}
+																	{
+																		none: "None",
+																		fade: "Fade",
+																		scroll: "Scroll with cards",
+																		squeeze: "Squeeze & burst",
+																		rise: "Rise up",
+																		fall: "Go down",
+																		ease: "Ease in",
+																	}[effect]
+																}
+															</option>
+														),
+													)}
 												</select>
 											</label>
-											{item.transition && item.transition !== "none" && (
-												<label>
-													Transition seconds
-													<input
-														aria-label={`${kind} transition seconds`}
-														type="number"
-														min="0.1"
-														max="3"
-														step="0.1"
-														value={item.transitionSeconds ?? 0.75}
-														onChange={(event) =>
-															setter({
-																...item,
-																transitionSeconds: Math.max(
-																	0.1,
-																	Math.min(3, Number(event.target.value) || 0.75),
-																),
-															})
-														}
-													/>
-												</label>
-											)}
+											{item.transition &&
+												item.transition !== "none" &&
+												item.transition !== "scroll" &&
+												item.transition !== "squeeze" && (
+													<label>
+														Transition seconds
+														<input
+															aria-label={`${kind} transition seconds`}
+															type="number"
+															min="0.1"
+															max="3"
+															step="0.1"
+															value={item.transitionSeconds ?? 0.75}
+															onChange={(event) =>
+																setter({
+																	...item,
+																	transitionSeconds: Math.max(
+																		0.1,
+																		Math.min(3, Number(event.target.value) || 0.75),
+																	),
+																})
+															}
+														/>
+													</label>
+												)}
 										</>
+									)}
+									{item && (
+										<small>
+											{kind === "intro"
+												? "Plays fully, then holds its final frame during the exit."
+												: "Enters first, then plays for its full duration."}{" "}
+											{(item.transition === "scroll" ||
+												(kind === "intro" && item.transition === "squeeze")) &&
+												"Movement follows card speed; adjust Seconds per card to change it."}
+										</small>
 									)}
 									{item?.kind === "video" && (
 										<>
@@ -1498,8 +1604,8 @@ export default function DataRecruit({
 							);
 						})}
 						<small>
-							Choose an image or video. Effects blend the intro’s end or the outro’s beginning,
-							including audio. Timing stays unchanged.
+							Choose an image or video. Entrance and exit time is added to the timeline, so each
+							bookend keeps its full playback duration.
 						</small>
 					</section>
 					<section>
