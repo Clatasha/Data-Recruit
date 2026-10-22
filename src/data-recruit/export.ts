@@ -6,12 +6,13 @@ import {
 	BufferTarget,
 	CanvasSink,
 	CanvasSource,
-	canEncodeAudio,
 	canEncodeVideo,
 	Input,
+	MovOutputFormat,
 	Mp4OutputFormat,
 	Output,
 } from "mediabunny";
+import { selectAudioCodec } from "./audioEncoding";
 import type { Bookend } from "./bookends";
 import { DEFAULT_EXPORT, type ExportSettings, exportGeometry } from "./exportSettings";
 import { geometry, type ScrollSettings, scrollDuration } from "./model";
@@ -96,8 +97,7 @@ export async function encodeScroll(
 		hardwareAcceleration: software ? "prefer-software" : "no-preference",
 	});
 	const target = new BufferTarget();
-	const output = new Output({ format: new Mp4OutputFormat({ fastStart: "in-memory" }), target });
-	output.addVideoTrack(source, { frameRate: fps });
+	let output: Output | undefined;
 	const scroll = scrollDuration(cards.length, settings),
 		introDuration = intro?.duration ?? 0;
 	const total = introDuration + scroll + (outro?.duration ?? 0);
@@ -111,18 +111,18 @@ export async function encodeScroll(
 			videos.push(await prepareVideo(outro, introDuration + scroll, width, height, fps));
 		checkCancelled();
 		const hasAudio = videos.some((video) => video.audio);
-		const audioOptions = { numberOfChannels: 2, sampleRate: 48_000, bitrate: 192_000 };
 		const audioCodec = hasAudio
-			? (await canEncodeAudio("aac", audioOptions))
-				? "aac"
-				: (await canEncodeAudio("opus", audioOptions))
-					? "opus"
-					: null
+			? await selectAudioCodec(Boolean(window.electronAPI?.dataRecruitEncodeAudio))
 			: null;
-		if (hasAudio && !audioCodec)
-			throw new Error(
-				"No audio encoder is available. Mute the intro/outro audio or use a browser with AAC or Opus encoding.",
-			);
+		// QuickTime PCM is broadly readable by the bundled FFmpeg; the final file is MP4/AAC.
+		output = new Output({
+			format:
+				audioCodec === "pcm-s16"
+					? new MovOutputFormat({ fastStart: "in-memory" })
+					: new Mp4OutputFormat({ fastStart: "in-memory" }),
+			target,
+		});
+		output.addVideoTrack(source, { frameRate: fps });
 		const audioSource = audioCodec
 			? new AudioSampleSource({ codec: audioCodec, bitrate: 192_000 })
 			: null;
@@ -151,7 +151,7 @@ export async function encodeScroll(
 				}
 				await source.add(time, Math.min(1 / fps, total - time));
 				if (frame % 15 === 0) {
-					progress(frame / frames);
+					progress((frame / frames) * (audioCodec === "pcm-s16" ? 0.95 : 1));
 					await new Promise((resolve) => setTimeout(resolve, 0));
 				}
 			}
@@ -203,10 +203,27 @@ export async function encodeScroll(
 		await Promise.all([renderFrames(), renderAudio()]);
 		await output.finalize();
 		if (!target.buffer) throw new Error("The video encoder did not return a file.");
+		let bytes = target.buffer;
+		if (audioCodec === "pcm-s16") {
+			checkCancelled();
+			const id = crypto.randomUUID();
+			const cancel = () => {
+				void window.electronAPI?.dataRecruitCancelAudio?.(id).catch(() => {
+					/* Main may already have completed. */
+				});
+			};
+			signal.addEventListener("abort", cancel, { once: true });
+			try {
+				bytes = await window.electronAPI!.dataRecruitEncodeAudio!(bytes, id);
+			} finally {
+				signal.removeEventListener("abort", cancel);
+			}
+			checkCancelled();
+		}
 		progress(1);
-		return { bytes: target.buffer, hasAudio: audioSource !== null };
+		return { bytes, hasAudio: audioSource !== null };
 	} catch (error) {
-		await output.cancel().catch(() => {
+		await output?.cancel().catch(() => {
 			/* Keep the original error. */
 		});
 		throw error;

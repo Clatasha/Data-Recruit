@@ -1022,3 +1022,11 @@ rounded source corners. Check crop, zoom, animation and mirrored cursor placemen
 - Fix: reconcile removed selections to an existing card/image after undo. Added regression checks for replacement and both crop controls; desktop smoke now asserts these controls immediately after undo.
 - Passed: 20 focused tests, app/test type checks, changed-file Biome checks. Native Windows/macOS manual pass skipped because native computer control is unavailable. This is not a stable release promotion.
 - Browser regression passed for the exact duplicate → undo → crop → replace sequence, then template/recovery/project roundtrip and export with MP4 and VP8/Opus WebM bookends. Production bundle build passed.
+
+### Data Recruit 0.1.2 desktop audio fallback — 2026-10-21 — Partial, Linux workspace
+
+- Windows run 39700924313 passed card-selection checks, built the installer, then failed export because Electron provided neither AAC nor Opus WebCodecs audio encoding.
+- Added a software PCM intermediate and app-owned desktop AAC finishing through the existing bundled FFmpeg resolver. The rendered H.264 video is copied. Native jobs validate input, restrict cancellation to the initiating window, abort on window destruction and clean temporary files on success/error/cancel.
+- Passed: 26 focused tests; app/test TypeScript; changed-file Biome; production bundles. Browser test deliberately removed AudioEncoder and used a real FFmpeg desktop bridge, with VP8/Opus WebM bookends.
+- Measured final MP4: H.264 720×1280 / 24 FPS / 3.416667 s; AAC audio / 3.4 s. Video bitstream SHA256 identical before/after finishing. Stereo-channel RMS: intro 0.044403 at 50% volume; scroll 0; outro 0.022058 at 25% volume.
+- Native Windows/macOS manual pass skipped because native computer control is unavailable here. Packaged Windows smoke still required; this partial pass does not authorize stable release promotion.

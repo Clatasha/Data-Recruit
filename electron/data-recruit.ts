@@ -2,9 +2,32 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { encodeDataRecruitAudio } from "./data-recruit-audio";
 
 /** Generated files are app-owned; the renderer cannot choose an arbitrary write path. */
 export function registerDataRecruitIpc() {
+	const audioJobs = new Map<string, AbortController>();
+	ipcMain.handle("data-recruit:encode-audio", async (event, bytes: ArrayBuffer, id: string) => {
+		if (!(bytes instanceof ArrayBuffer) || bytes.byteLength > 1024 * 1024 * 1024)
+			throw new Error("Invalid video data.");
+		if (typeof id !== "string" || !/^[a-z0-9-]{8,80}$/i.test(id))
+			throw new Error("Invalid export ID.");
+		const key = `${event.sender.id}:${id}`;
+		if (audioJobs.has(key)) throw new Error("This export is already running.");
+		const controller = new AbortController();
+		audioJobs.set(key, controller);
+		const abort = () => controller.abort();
+		event.sender.once("destroyed", abort);
+		try {
+			return await encodeDataRecruitAudio(bytes, controller.signal);
+		} finally {
+			audioJobs.delete(key);
+			event.sender.removeListener("destroyed", abort);
+		}
+	});
+	ipcMain.handle("data-recruit:cancel-audio", (event, id: string) => {
+		if (typeof id === "string") audioJobs.get(`${event.sender.id}:${id}`)?.abort();
+	});
 	const guarded = new WeakSet<BrowserWindow>();
 	const dirtyWindows = new WeakMap<BrowserWindow, boolean>();
 	ipcMain.handle("data-recruit:set-dirty", (event, dirty: boolean) => {

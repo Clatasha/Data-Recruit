@@ -139,7 +139,21 @@ try {
 		.setInputFiles(path.join(output, "outro.webm"));
 	await page.getByRole("status").filter({ hasText: "Outro video added" }).waitFor();
 	await page.getByRole("button", { name: "Export MP4" }).click();
-	await page.getByRole("status").filter({ hasText: "MP4 ready" }).waitFor({ timeout: 120_000 });
+	await page.waitForFunction(
+		() => {
+			const status = document.querySelector(".dr-status")?.textContent || "";
+			return /MP4 ready|No audio encoder|encoding failed|encoder is missing|Could not|Cannot|cancelled|timed out/i.test(
+				status,
+			);
+		},
+		undefined,
+		{ timeout: 120_000 },
+	);
+	assert.match(
+		await page.getByRole("status").innerText(),
+		/MP4 ready/,
+		"Desktop MP4 export must finish with sound",
+	);
 	assert((await fs.stat(path.join(output, "Data-Recruit.mp4"))).size > 1000);
 	const pcm = execFileSync(ffmpeg, [
 		"-v",

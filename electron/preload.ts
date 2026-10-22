@@ -59,6 +59,10 @@ sharedTexture?.setSharedTextureReceiver(async ({ importedSharedTexture }, meta) 
 });
 
 contextBridge.exposeInMainWorld("electronAPI", {
+	dataRecruitEncodeAudio: (bytes: ArrayBuffer, id: string): Promise<ArrayBuffer> =>
+		ipcRenderer.invoke("data-recruit:encode-audio", bytes, id),
+	dataRecruitCancelAudio: (id: string): Promise<void> =>
+		ipcRenderer.invoke("data-recruit:cancel-audio", id),
 	dataRecruitSetDirty: (dirty: boolean): Promise<void> =>
 		ipcRenderer.invoke("data-recruit:set-dirty", dirty),
 	dataRecruitExportVideo: (bytes: ArrayBuffer): Promise<string | null> =>
