@@ -73,6 +73,9 @@ try {
 	page = await application.firstWindow();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
+	page.on("console", (message) => {
+		if (message.text().startsWith("Data Recruit decoder color")) console.log(message.text());
+	});
 	await page.getByRole("heading", { name: "Salary per movie" }).waitFor({ timeout: 60_000 });
 	const files = await page.evaluate(() =>
 		["#355c79", "#93734b", "#554e81"].map((color, index) => {
@@ -209,9 +212,14 @@ try {
 			return at === 3 ? rgb[0] > 180 && rgb[2] < 50 : rgb[2] > 180 && rgb[0] < 50;
 		}, time);
 		const pixels = await page.locator(".dr-stage canvas").evaluate((canvas) =>
-			[0.25, 0.75].map((fraction) => {
+			[
+				[0.25, 0.5],
+				[0.75, 0.5],
+				[0.25, 0.1],
+				[0.75, 0.1],
+			].map(([fraction, vertical]) => {
 				const x = canvas.width * fraction,
-					y = canvas.height / 2;
+					y = canvas.height * vertical;
 				return {
 					x,
 					y,

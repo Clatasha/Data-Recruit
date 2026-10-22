@@ -19,6 +19,7 @@ import { geometry, type ScrollSettings } from "./model";
 import { drawImageFit } from "./render";
 import { drawSequence } from "./sequence";
 import { sequenceTiming } from "./transitions";
+import { matchPreviewColor } from "./videoColor";
 
 interface VideoBookend {
 	item: Extract<Bookend, { kind: "video" }>;
@@ -34,8 +35,6 @@ interface VideoBookend {
 async function prepareVideo(
 	item: Extract<Bookend, { kind: "video" }>,
 	offset: number,
-	width: number,
-	height: number,
 	fps: number,
 	visibleStart: number,
 	visibleEnd: number,
@@ -46,7 +45,8 @@ async function prepareVideo(
 		const track = await input.getPrimaryVideoTrack();
 		if (!track) throw new Error(`No video track in ${item.name}.`);
 		const first = await track.getFirstTimestamp();
-		const sink = new CanvasSink(track, { width, height, fit: "contain", poolSize: 2 });
+		await matchPreviewColor(track, item.media);
+		const sink = new CanvasSink(track, { poolSize: 2 });
 		function* timestamps() {
 			for (let frame = Math.ceil(visibleStart * fps); frame < Math.ceil(visibleEnd * fps); frame++)
 				yield first +
@@ -158,30 +158,10 @@ export async function encodeScroll(
 	};
 	try {
 		if (intro?.kind === "video")
-			videos.push(
-				await prepareVideo(
-					intro,
-					0,
-					width,
-					height,
-					fps,
-					0,
-					intro.duration + timing.introExit,
-					signal,
-				),
-			);
+			videos.push(await prepareVideo(intro, 0, fps, 0, intro.duration + timing.introExit, signal));
 		if (outro?.kind === "video")
 			videos.push(
-				await prepareVideo(
-					outro,
-					timing.outroHold,
-					width,
-					height,
-					fps,
-					timing.outroStart,
-					total,
-					signal,
-				),
+				await prepareVideo(outro, timing.outroHold, fps, timing.outroStart, total, signal),
 			);
 		checkCancelled();
 		const hasAudio = videos.some((video) => video.audio);
@@ -223,7 +203,7 @@ export async function encodeScroll(
 						ctx.fillStyle = "#111827";
 						ctx.fillRect(0, 0, design.width, design.height);
 						const videoFrame = videoFrames.get(item);
-						if (videoFrame) ctx.drawImage(videoFrame, 0, 0, design.width, design.height);
+						if (videoFrame) drawImageFit(ctx, videoFrame, 0, 0, design.width, design.height, "fit");
 					}
 				});
 				ctx.restore();
