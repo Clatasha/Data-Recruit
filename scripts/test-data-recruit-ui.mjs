@@ -227,7 +227,10 @@ try {
 			return last.top >= list.top && last.bottom <= list.bottom;
 		}),
 	);
-	await page.getByText("＋ Add more images", { exact: true }).scrollIntoViewIfNeeded();
+	const addImages = page.locator("label.dr-drop").filter({ has: page.locator("input[multiple]") });
+	assert.match(await addImages.textContent(), /Add more images/);
+	await addImages.scrollIntoViewIfNeeded();
+	assert(await addImages.isVisible(), "Add more images must remain accessible after scrolling");
 	await page.screenshot({ path: path.join(output, "100-images.png") });
 	assert.deepEqual(errors, []);
 	console.log(
