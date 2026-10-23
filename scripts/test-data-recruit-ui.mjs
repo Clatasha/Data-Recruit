@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { _electron as electron } from "playwright";
+import { forceAvcFallback } from "./data-recruit-codec-probe.mjs";
 
 const output = path.resolve("release/data-recruit-preview");
 await fs.mkdir(output, { recursive: true });
@@ -249,11 +250,17 @@ try {
 		transitionSamples.push({ time, pixels });
 		await page.screenshot({ path: path.join(output, `connected-${time}.png`) });
 	}
-	await page.evaluate(() => {
-		const supported = VideoDecoder.isConfigSupported.bind(VideoDecoder);
-		VideoDecoder.isConfigSupported = async (config) =>
-			config.codec.startsWith("avc") ? { supported: false, config } : supported(config);
-	});
+	const codecCapabilities = await application.evaluate(
+		({ BrowserWindow }, { url, source }) => {
+			const builder = BrowserWindow.getAllWindows().find(
+				(window) => window.webContents.getURL() === url,
+			);
+			if (!builder) throw new Error("Builder window is unavailable for codec checks.");
+			return builder.webContents.executeJavaScript(source);
+		},
+		{ url: page.url(), source: `(${forceAvcFallback.toString()})()` },
+	);
+	console.log("Data Recruit codec capabilities:", codecCapabilities);
 
 	await page.getByRole("button", { name: "Export MP4" }).click();
 	await page.waitForFunction(
