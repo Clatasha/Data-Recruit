@@ -99,6 +99,7 @@ const recipeSchema = z.object({
 	version: z.literal(1),
 	music: z.array(musicSchema).max(100).default([]),
 	order: z.array(z.number().int().positive()).default([]),
+	reverseOrder: z.boolean().default(false),
 	exportOptions: z
 		.object({
 			resolution: z.union([z.literal(720), z.literal(1080), z.literal(1440)]),
@@ -156,6 +157,7 @@ export default function DataRecruit({
 		intro: null as Bookend | null,
 		outro: null as Bookend | null,
 		order: [] as number[],
+		reverseOrder: false,
 		music: [] as MusicClip[],
 		exportOptions: { ...DEFAULT_EXPORT },
 	});
@@ -164,8 +166,18 @@ export default function DataRecruit({
 	currentProject.current = history.present;
 	const [savingProject, setSavingProject] = useState(false);
 	const savePending = useRef(false);
-	const { text, template, images, settings, intro, outro, order, exportOptions, music } =
-		history.present;
+	const {
+		text,
+		template,
+		images,
+		settings,
+		intro,
+		outro,
+		order,
+		reverseOrder,
+		exportOptions,
+		music,
+	} = history.present;
 	const setter =
 		<K extends keyof typeof history.present>(key: K) =>
 		(value: SetStateAction<(typeof history.present)[K]>) =>
@@ -178,6 +190,7 @@ export default function DataRecruit({
 		setIntro = setter("intro"),
 		setOutro = setter("outro"),
 		setOrder = setter("order"),
+		setReverseOrder = setter("reverseOrder"),
 		setExportOptions = setter("exportOptions");
 	const [audioLoading, setAudioLoading] = useState(false);
 	const audioImport = useRef<AbortController | null>(null);
@@ -263,21 +276,19 @@ export default function DataRecruit({
 	const parsed = useMemo(() => {
 		try {
 			const cards = parseCards(text);
-			return {
-				cards: [...cards].sort((a, b) => {
-					const ai = order.indexOf(a.id),
-						bi = order.indexOf(b.id);
-					return (
-						(ai < 0 ? order.length + cards.indexOf(a) : ai) -
-						(bi < 0 ? order.length + cards.indexOf(b) : bi)
-					);
-				}),
-				error: "",
-			};
+			const sorted = [...cards].sort((a, b) => {
+				const ai = order.indexOf(a.id),
+					bi = order.indexOf(b.id);
+				return (
+					(ai < 0 ? order.length + cards.indexOf(a) : ai) -
+					(bi < 0 ? order.length + cards.indexOf(b) : bi)
+				);
+			});
+			return { cards: reverseOrder ? sorted.reverse() : sorted, error: "" };
 		} catch (error) {
 			return { cards: [], error: String(error instanceof Error ? error.message : error) };
 		}
-	}, [text, order]);
+	}, [text, order, reverseOrder]);
 	// Undoing a duplicate can remove the selected ID while restoring the original card.
 	// Keep the inspector on an existing card instead of hiding its image controls.
 	useEffect(() => {
@@ -318,7 +329,7 @@ export default function DataRecruit({
 	useEffect(() => {
 		setPlaying(false);
 		setTime(0);
-	}, [text, images, template, settings, intro, outro, order]);
+	}, [text, images, template, settings, intro, outro, order, reverseOrder]);
 	const paint = useCallback(
 		(at: number) => {
 			const ctx = canvasRef.current?.getContext("2d");
@@ -566,6 +577,7 @@ export default function DataRecruit({
 			version: 1,
 			music: music.map(serializeMusic),
 			order,
+			reverseOrder,
 			exportOptions,
 			text,
 			template,
@@ -665,6 +677,7 @@ export default function DataRecruit({
 			const next = history.replace({
 				...history.present,
 				order: value.order,
+				reverseOrder: value.reverseOrder,
 				music: restoredMusic,
 				exportOptions: value.exportOptions,
 				text: value.text,
@@ -810,12 +823,16 @@ export default function DataRecruit({
 			)
 			.join("\n\n");
 	}
+	function setDisplayedOrder(ids: number[]) {
+		setOrder(reverseOrder ? [...ids].reverse() : ids);
+	}
+
 	function moveCard(from: number | null, target: number | undefined) {
 		if (from === null || target === undefined || from === target) return;
 		history.checkpoint();
 		const ids = parsed.cards.map((c) => c.id).filter((id) => id !== from);
 		ids.splice(ids.indexOf(target), 0, from);
-		setOrder(ids);
+		setDisplayedOrder(ids);
 	}
 	function duplicateCard() {
 		history.checkpoint();
@@ -824,7 +841,7 @@ export default function DataRecruit({
 		const cards = [...parsed.cards];
 		cards.splice(cards.indexOf(selectedCard) + 1, 0, { id, fields: { ...selectedCard.fields } });
 		setText(cardsText(cards));
-		setOrder(cards.map((c) => c.id));
+		setDisplayedOrder(cards.map((c) => c.id));
 		if (chosen) setImages([...images, { ...chosen, id }]);
 		setSelected(id);
 	}
@@ -939,6 +956,21 @@ export default function DataRecruit({
 						<h2>
 							<b>01</b> Images <small>{images.length} added</small>
 						</h2>
+						<label className="dr-reverse-order">
+							<input
+								type="checkbox"
+								checked={reverseOrder}
+								disabled={busy}
+								onChange={(event) => {
+									history.checkpoint();
+									setReverseOrder(event.target.checked);
+								}}
+							/>
+							Reverse card order
+						</label>
+						<small>
+							Last card first. Images and text stay together; badge counting is separate.
+						</small>
 						<label className="dr-drop">
 							{images.length ? "＋ Add more images" : "＋ Select numbered images"}
 							<small>1.jpg, 2.jpg, 3.jpg · PNG / JPG / WebP</small>
@@ -1648,7 +1680,7 @@ export default function DataRecruit({
 											const ids = parsed.cards.map((c) => c.id),
 												at = ids.indexOf(selected!);
 											[ids[at], ids[at + 1]] = [ids[at + 1], ids[at]];
-											setOrder(ids);
+											setDisplayedOrder(ids);
 										}}
 									>
 										Later →

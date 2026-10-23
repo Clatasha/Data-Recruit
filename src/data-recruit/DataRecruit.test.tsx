@@ -374,3 +374,107 @@ it("keeps edits made while an earlier snapshot is being saved marked unsaved", a
 	await act(async () => finish("C:/project.json"));
 	expect(screen.getByRole("status").textContent).toContain("Unsaved project");
 });
+
+it("reverses an existing 100-card project with image/text pairs and count-up badges, and restores the saved toggle", async () => {
+	const view = await setup();
+	await act(async () =>
+		fireEvent.change(view.container.querySelector('input[multiple][accept^="image/"]')!, {
+			target: {
+				files: Array.from(
+					{ length: 99 },
+					(_, index) => new File(["image"], `${index + 2}.png`, { type: "image/png" }),
+				),
+			},
+		}),
+	);
+	await waitFor(() =>
+		expect(view.container.querySelectorAll(".dr-images button")).toHaveLength(100),
+	);
+	const text = Array.from(
+		{ length: 100 },
+		(_, index) =>
+			`${index + 1}\nTitle: Card ${index + 1}\nBudget: $1M\nBox Office: $5M\nPaycheck: $100K`,
+	).join("\n\n");
+	fireEvent.change(screen.getByLabelText("Numbered card data"), { target: { value: text } });
+	fireEvent.click(screen.getByLabelText("Show numbered circles"));
+	fireEvent.click(screen.getByLabelText("Reverse card order"));
+	const calls = vi.mocked(renderCard).mock.calls.slice(-100);
+	expect(calls.map((call) => call[0].id)).toEqual(
+		Array.from({ length: 100 }, (_, index) => 100 - index),
+	);
+	expect(
+		calls.every(
+			(call) => call[1]?.id === call[0].id && call[0].fields.title === `Card ${call[0].id}`,
+		),
+	).toBe(true);
+	expect(calls.map((call) => call[4])).toEqual(
+		Array.from({ length: 100 }, (_, index) => index + 1),
+	);
+	const save = vi.fn(async (_recipe: string) => "C:/project.json");
+	window.electronAPI.dataRecruitSaveProject = save;
+	fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Project saved."));
+	const recipe = save.mock.calls[0][0];
+	expect(JSON.parse(recipe).reverseOrder).toBe(true);
+	expect(JSON.parse(recipe).text).toBe(text);
+	const firstCanvas = vi.mocked(renderCard).mock.results.at(-100)!.value;
+	fireEvent.click(screen.getByRole("button", { name: /Export MP4/ }));
+	await waitFor(() => expect(encodeScroll).toHaveBeenCalledOnce());
+	expect(vi.mocked(encodeScroll).mock.calls[0][0][0]).toBe(firstCanvas);
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("MP4 ready"));
+	fireEvent.click(screen.getByLabelText("Reverse card order"));
+	expect(view.container.querySelector(".dr-images span")?.textContent).toBe("1");
+	fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+	expect(view.container.querySelector(".dr-images span")?.textContent).toBe("100");
+	fireEvent.click(screen.getByRole("button", { name: "Redo" }));
+	expect(view.container.querySelector(".dr-images span")?.textContent).toBe("1");
+	const file = new File([], "project.json", { type: "application/json" });
+	Object.defineProperty(file, "text", { value: async () => recipe });
+	await act(async () =>
+		fireEvent.change(view.container.querySelector('input[accept=".json"]')!, {
+			target: { files: [file] },
+		}),
+	);
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Project opened"));
+	expect((screen.getByLabelText("Reverse card order") as HTMLInputElement).checked).toBe(true);
+	expect(view.container.querySelector(".dr-images span")?.textContent).toBe("100");
+});
+it("keeps manual moves and duplication usable while reversed and opens older projects in their original order", async () => {
+	const view = await setup();
+	fireEvent.click(screen.getByRole("button", { name: "Duplicate card" }));
+	fireEvent.click(screen.getByRole("button", { name: "Duplicate card" }));
+	fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
+	const ids = () =>
+		Array.from(view.container.querySelectorAll(".dr-images span")).map(
+			(element) => element.textContent,
+		);
+	expect(ids()).toEqual(["1", "3", "2"]);
+	fireEvent.click(screen.getByLabelText("Reverse card order"));
+	expect(ids()).toEqual(["2", "3", "1"]);
+	fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
+	expect(ids()).toEqual(["3", "2", "1"]);
+	fireEvent.click(screen.getByRole("button", { name: "Duplicate card" }));
+	expect(ids()).toEqual(["3", "4", "2", "1"]);
+	fireEvent.click(screen.getByRole("button", { name: "Remove card" }));
+	expect(ids()).toEqual(["3", "2", "1"]);
+	fireEvent.click(screen.getByLabelText("Reverse card order"));
+	expect(ids()).toEqual(["1", "2", "3"]);
+	const save = vi.fn(async (_recipe: string) => "C:/project.json");
+	window.electronAPI.dataRecruitSaveProject = save;
+	fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+	await waitFor(() => expect(save).toHaveBeenCalledOnce());
+	const old = JSON.parse(save.mock.calls[0][0]);
+	delete old.reverseOrder;
+	old.order = [3, 1, 2];
+	fireEvent.click(screen.getByLabelText("Reverse card order"));
+	const file = new File([], "old.json");
+	Object.defineProperty(file, "text", { value: async () => JSON.stringify(old) });
+	await act(async () =>
+		fireEvent.change(view.container.querySelector('input[accept=".json"]')!, {
+			target: { files: [file] },
+		}),
+	);
+	await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Project opened"));
+	expect((screen.getByLabelText("Reverse card order") as HTMLInputElement).checked).toBe(false);
+	expect(ids()).toEqual(["3", "1", "2"]);
+});

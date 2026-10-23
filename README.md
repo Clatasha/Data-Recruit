@@ -40,6 +40,8 @@ Optional intro/outro slots accept images or videos, with no 100 MB desktop impor
 
 ## Number badges and music
 
+**Reverse card order**, above the image picker, flips the current card sequence in one click: the last card becomes first. Images and their text stay paired without renaming files. Switch it off to return to the original sequence. This setting is saved in the project and works with Undo/Redo; badge counting remains independent.
+
 Enable **Card number badges** for top-right circles. Choose count up or count down, leave the starting number empty for automatic numbering, or enter your own start. Badge numbers follow the current timeline order rather than image filenames. Size and colors are saved with the template, for landscape and Shorts.
 
 The builder's compact **Music / Audio** timeline accepts multiple files through **＋ Add audio** or file drop. Files selected together are placed consecutively starting at the playhead. Drag waveforms to reposition them; overlapping clips play together. Select a clip to trim its source start/end, change timeline position and duration, set export volume or mute, add fades, loop the trimmed source to fill the video, split at the playhead, duplicate or delete. Audio beyond the video end is trimmed on export. Multiple lanes scroll within the small strip. Clips support Undo/Redo and project recovery.

@@ -157,6 +157,21 @@ try {
 		await page.locator(".dr-images img").first().getAttribute("alt"),
 		"correct-photo.png",
 	);
+	await page.getByLabel("Reverse card order", { exact: true }).check();
+	assert.deepEqual(await page.locator(".dr-track button span").allTextContents(), [
+		"#3",
+		"#2",
+		"#1",
+	]);
+	assert.equal(await page.locator(".dr-images button span").first().textContent(), "3");
+	await page.screenshot({ path: path.join(output, "reversed-cards.png") });
+	await page.getByLabel("Reverse card order", { exact: true }).uncheck();
+	assert.deepEqual(await page.locator(".dr-track button span").allTextContents(), [
+		"#1",
+		"#2",
+		"#3",
+	]);
+
 	await page.getByRole("button", { name: "9:16 Shorts", exact: false }).click();
 	await page.getByRole("button", { name: "Build Timeline" }).click();
 	await page.getByRole("button", { name: "Pause", exact: false }).click();
@@ -493,6 +508,7 @@ try {
 	assert.equal(await page.locator(".dr-images button").count(), 0);
 	assert.equal(await page.getByRole("button", { name: /Audio clip/ }).count(), 0);
 	assert(await page.getByRole("button", { name: "Undo", exact: true }).isDisabled());
+	assert(!(await page.getByLabel("Reverse card order", { exact: true }).isChecked()));
 	assert.deepEqual(errors, []);
 	console.log(
 		"Data Recruit: playback after edits, image replacement, video bookends with timed audio, Save As export, Shorts and editor handoff passed.",
